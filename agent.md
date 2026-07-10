@@ -15,11 +15,13 @@ Always prefix shell commands with `rtk` so command output stays token-efficient:
 
 ## Serena Tool Usage
 
-Use Serena for semantic navigation and edits across both repos (`evolver/` and `dpu/`):
+Use Serena for all Python interaction across both repos (`evolver/` and `dpu/`). This is explicit and mandatory: navigate Python with Serena, inspect Python symbols with Serena, and make Python symbol edits with Serena whenever a symbol-aware edit applies.
+
 - Symbol overview before reading full files.
 - `find_symbol`, `find_referencing_symbols` for understanding call graphs.
 - `replace_symbol_body`, `insert_after_symbol` for structure-aware edits.
 - `search_for_pattern` when a symbol name is unknown.
+- Use shell tools for tests, formatting, docs, generated output, and non-Python files.
 
 ## Project Layout
 
@@ -36,7 +38,12 @@ Run Nix checks from each repo:
 
 ## Commits
 
-Commit completed changes . The two repos (`evolver/` and `dpu/`) are committed independently, and the workspace root is not itself a git repo.
+Commit after each completed step so work is preserved as small, reviewable checkpoints. Do not wait until the end of a long task to commit unrelated stages together.
+
+Use the correct git repo for each change:
+- Workspace-level coordination files such as this `agent.md`, root `pytest.ini`, and `docs/` are committed from `/home/ash/Documents/work/evolver_code`.
+- `evolver/` and `dpu/` are nested repos and must be committed independently from their own repo roots.
+- Keep commit messages scoped to the step that was just completed.
 
 ## Docs
 
