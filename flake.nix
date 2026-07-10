@@ -120,6 +120,18 @@
         system:
         let
           pkgs = nixpkgs.legacyPackages.${system};
+          testPython = pkgs.python3.withPackages (
+            ps: with ps; [
+              aiohttp
+              pytest
+              pyserial
+              python-socketio
+              pyyaml
+              requests
+              six
+              websocket-client
+            ]
+          );
         in
         {
           default = pkgs.mkShell {
@@ -127,6 +139,7 @@
             packages = [
               pkgs.git
               pkgs.nix
+              testPython
             ];
           };
         }

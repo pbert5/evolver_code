@@ -1,0 +1,9 @@
+#!/usr/bin/env bash
+set -euo pipefail
+workspace="$(cd "$(dirname "$0")/.." && pwd)"
+cd "$workspace"
+pythonpath="$workspace/evolver:$workspace/evolver/evolver"
+if [ -n "${PYTHONPATH:-}" ]; then
+  pythonpath="$pythonpath:$PYTHONPATH"
+fi
+exec nix develop "$workspace" -c env PYTHONPATH="$pythonpath" pytest "$@"

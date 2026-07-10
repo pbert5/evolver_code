@@ -1,4 +1,13 @@
 {
-  "python.testing.pytestEnabled": false,
-  "python.testing.unittestEnabled": false
+  "python.testing.pytestEnabled": true,
+  "python.testing.unittestEnabled": false,
+  "python.testing.pytestPath": "${workspaceFolder}/.vscode/pytest-nix",
+  "python.testing.pytestArgs": [
+    "--import-mode=importlib",
+    "evolver/tests",
+    "evolver-arduino/tests"
+  ],
+  "nixEnvSelector.nixFile": "${workspaceFolder}/flake.nix",
+  "nixEnvSelector.useFlakes": true,
+  "nixEnvSelector.flakeShell": "default"
 }
