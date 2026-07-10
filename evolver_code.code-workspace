@@ -1,0 +1,25 @@
+{
+  "folders": [
+    {
+      "name": "workspace",
+      "path": "."
+    },
+    {
+      "name": "evolver",
+      "path": "evolver"
+    },
+    {
+      "name": "evolver-arduino",
+      "path": "evolver-arduino"
+    },
+    {
+      "name": "dpu",
+      "path": "dpu"
+    }
+  ],
+  "settings": {
+    "python.testing.pytestEnabled": true,
+    "python.testing.unittestEnabled": false,
+    "testing.defaultGutterClickAction": "run"
+  }
+}

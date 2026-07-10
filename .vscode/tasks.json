@@ -1,0 +1,39 @@
+{
+  "version": "2.0.0",
+  "tasks": [
+    {
+      "label": "nix: check workspace",
+      "type": "shell",
+      "command": "nix run .#check-all",
+      "group": "test",
+      "problemMatcher": []
+    },
+    {
+      "label": "nix: check root flake",
+      "type": "shell",
+      "command": "nix flake check --all-systems",
+      "group": "test",
+      "problemMatcher": []
+    },
+    {
+      "label": "pytest: evolver",
+      "type": "shell",
+      "command": "nix develop . -c pytest tests",
+      "options": {
+        "cwd": "${workspaceFolder}/evolver"
+      },
+      "group": "test",
+      "problemMatcher": []
+    },
+    {
+      "label": "pytest: evolver-arduino",
+      "type": "shell",
+      "command": "nix develop . -c pytest tests",
+      "options": {
+        "cwd": "${workspaceFolder}/evolver-arduino"
+      },
+      "group": "test",
+      "problemMatcher": []
+    }
+  ]
+}
