@@ -21,7 +21,15 @@ Two independent git repos under this directory:
 - `dpu/` — workstation experiment/calibration client (Python 3.9 + Nix flake)
 - `docs/` — project documentation
 
-Each repo has its own `flake.nix` and must be committed separately.
+Each repo has its own `flake.nix` and must be committed separately. The workspace
+root also exposes convenience flake entrypoints that delegate into the relevant
+subproject.
+
+Root-level test links live under `tests/`:
+- `tests/evolver` -> `evolver/tests`
+- `tests/evolver-arduino` -> `evolver-arduino/tests`
+- `tests/evolver-plan-datacatalog` -> `evolver_plan/test_datacatalog`
+- `tests/evolver-plan-ui-original` -> `evolver_plan/ui/original/test`
 
 ## Commits
 
