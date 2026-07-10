@@ -123,7 +123,9 @@
           testPython = pkgs.python3.withPackages (
             ps: with ps; [
               aiohttp
+              coverage
               pytest
+              pytest-cov
               pyserial
               python-socketio
               pyyaml

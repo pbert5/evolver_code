@@ -1,1 +1,6 @@
 .serena/cache
+.coverage
+.coverage.*
+.pytest_cache/
+coverage.xml
+htmlcov/
