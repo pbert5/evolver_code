@@ -7,3 +7,6 @@
 [submodule "evolver-arduino"]
 	path = evolver-arduino
 	url = https://github.com/pbert5/evolver-arduino.git
+[submodule "evolver_plan"]
+	path = evolver_plan
+	url = https://github.com/pbert5/evolver_plan.git
