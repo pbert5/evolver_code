@@ -1,7 +1,9 @@
 {
   "permissions": {
     "allow": [
-      "mcp__plugin_claude-code-home-manager_serena__activate_project"
+      "mcp__plugin_claude-code-home-manager_serena__activate_project",
+      "Bash(nix-shell -p yarn nodejs_22 --run \"START_HOT=1 yarn start-renderer-dev 2>&1\")",
+      "Bash(nix-shell -p yarn nodejs_22 python3 --run \"node node_modules/electron/install.js 2>&1\")"
     ]
   }
 }
