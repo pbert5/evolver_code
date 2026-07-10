@@ -1,0 +1,9 @@
+[submodule "evolver"]
+	path = evolver
+	url = https://github.com/pbert5/evolver.git
+[submodule "dpu"]
+	path = dpu
+	url = https://github.com/pbert5/dpu.git
+[submodule "evolver-arduino"]
+	path = evolver-arduino
+	url = https://github.com/pbert5/evolver-arduino.git
