@@ -61,3 +61,25 @@ The DPU communicates with the evolver server using the legacy `socketIO-client 0
 ## Service management (NixOS)
 
 On NixOS, the evolver server is managed by a systemd service (see `evolver/nix/evolver-module.nix`). This replaces the original supervisord + cron watchdog setup. Systemd restarts the process automatically on failure with a 10 s cooldown, and logs go to journald.
+
+## Integrated Runtime Prototype
+
+The proposed integrated local runtime lives in `integrated_evolver/`, not inside
+the legacy `evolver/` server package.
+
+That folder owns the new architecture experiments:
+
+- versioned interprocess message contracts
+- append-only local data streams
+- control-plane lifecycle coordination
+- DPU subprocess runner management
+- maintenance-job authorization and state tracking
+- a local aiohttp control API
+- a broadcast ingester that subscribes to the existing Socket.IO server
+
+The current `evolver/` server remains the hardware-facing service. The current
+`dpu/` repo remains the experiment scripting environment. The integrated
+runtime coordinates those components while the architecture is being developed.
+
+See `integrated_evolver/README.md` and
+`integrated_evolver/docs/architecture.md` for the detailed phased design.

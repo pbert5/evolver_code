@@ -64,6 +64,7 @@
         let
           pkgs = nixpkgs.legacyPackages.${system};
           evolverApp = name: description: mkApp pkgs name "evolver" description;
+          integratedApp = name: description: mkApp pkgs name "integrated_evolver" description;
           dpuApp = name: description: mkApp pkgs name "dpu" description;
           arduinoApp = name: description: mkApp pkgs name "evolver-arduino" description;
           checkAll = pkgs.writeShellApplication {
@@ -72,7 +73,7 @@
             text = ''
               set -euo pipefail
               workspace="''${EVOLVER_WORKSPACE_DIR:-$PWD}"
-              for dir in evolver dpu evolver-arduino; do
+              for dir in evolver integrated_evolver dpu evolver-arduino; do
                 target="$workspace/$dir"
                 if [ ! -f "$target/flake.nix" ]; then
                   echo "ERROR: expected $dir/flake.nix under $workspace"
@@ -95,6 +96,11 @@
           "export-calibration" = evolverApp "export-calibration" "Export device calibration data.";
           "test-virtual-dpu" = evolverApp "test-virtual-dpu" "Run the virtual DPU integration smoke test.";
 
+          "run-control-plane" =
+            integratedApp "run-control-plane" "Run the integrated eVOLVER control-plane API.";
+          "run-broadcast-ingest" =
+            integratedApp "run-broadcast-ingest" "Persist eVOLVER broadcasts as raw data.";
+
           "run-dpu" = dpuApp "run-dpu" "Run the DPU experiment controller.";
 
           "setup-arduino" = arduinoApp "setup-arduino" "Set up Arduino tooling for SAMD21 firmware.";
@@ -105,6 +111,8 @@
           "upload-firmware-nano" = arduinoApp "upload-firmware-nano" "Upload Arduino Nano eVOLVER firmware.";
 
           "check-evolver" = mkCheckApp pkgs "check-evolver" "evolver" "Run the eVOLVER flake checks.";
+          "check-integrated-evolver" =
+            mkCheckApp pkgs "check-integrated-evolver" "integrated_evolver" "Run the integrated runtime flake checks.";
           "check-dpu" = mkCheckApp pkgs "check-dpu" "dpu" "Run the DPU flake checks.";
           "check-arduino" =
             mkCheckApp pkgs "check-arduino" "evolver-arduino" "Run the Arduino firmware flake checks.";

@@ -24,6 +24,24 @@ cd evolver && nix build            # → ./result/bin/evolver-server
 cd evolver && nix run              # equivalent to ./result/bin/evolver-server
 ```
 
+From the workspace root, run the integrated runtime prototype:
+
+```bash
+# Local control-plane API on 127.0.0.1:8082
+nix run .#run-control-plane
+
+# Subscribe to the existing server and persist raw broadcast data
+nix run .#run-broadcast-ingest
+```
+
+The implementation for those commands lives in `integrated_evolver/`.
+Run its tests with:
+
+```bash
+cd integrated_evolver
+nix flake check
+```
+
 ---
 
 ## evolver server (Raspberry Pi)
