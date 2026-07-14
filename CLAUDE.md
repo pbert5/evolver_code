@@ -8,11 +8,17 @@
 
 ## Serena Tool Usage
 
-Use Serena for semantic navigation and edits across both repos (`evolver/` and `dpu/`):
-- Symbol overview before reading full files.
-- `find_symbol`, `find_referencing_symbols` for understanding call graphs.
-- `replace_symbol_body`, `insert_after_symbol` for structure-aware edits.
-- `search_for_pattern` when a symbol name is unknown.
+Use Serena for all Python semantic navigation, inspection, and edits across
+repos (`evolver/`, `dpu/`, and related Python workspaces). This is mandatory.
+
+- Do not use shell text tools or ordinary file reads as the first step for
+  Python source.
+- Use symbol overview before reading full Python files.
+- Use `find_symbol`, `find_referencing_symbols` for understanding call graphs.
+- Use `replace_symbol_body`, `insert_after_symbol` for structure-aware edits.
+- Use `search_for_pattern` when a symbol name is unknown.
+- Use shell/file tools for tests, formatting, docs, Nix, scripts, and other
+  non-Python files.
 
 ## Project Layout
 
