@@ -273,12 +273,42 @@ def test_evolver_tui_number_keys_focus_left_panels_without_hiding(monkeypatch):
 
     async def run_app():
         async with app.run_test() as pilot:
+            await pilot.pause()
+            assert app.focused is not None
+            assert app.focused.id == "exp-list"
+
             await pilot.press("3")
             assert app.query_one("#inv-panel").display is True
             assert app.query_one("#live-panel").display is True
+            assert app.focused is not None
+            assert app.focused.id == "proto-list"
+
+            await pilot.press("]")
+            assert app.focused is not None
+            assert app.focused.id == "mat-list"
+            await pilot.press("[")
+            assert app.focused is not None
+            assert app.focused.id == "proto-list"
+
+            await pilot.press("2")
+            assert app.focused is not None
+            assert app.focused.id == "exp-list"
+            await pilot.press("]")
+            assert app.focused is not None
+            assert app.focused.id == "evolver-list"
+            await pilot.press("]")
+            assert app.focused is not None
+            assert app.focused.id == "service-list"
+
             await pilot.press("5")
             assert app.query_one("#comp-panel").display is True
             assert app.query_one("#inv-panel").display is True
+            assert app.focused is not None
+            assert app.focused.id == "comp-list"
+
+            await pilot.press("1")
+            assert app.focused is not None
+            assert app.focused.id == "status-panel"
 
     asyncio.run(run_app())
 

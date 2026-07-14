@@ -60,6 +60,20 @@ TabbedContent > Tabs {
     height: 1;
 }
 
+/* Keep the selected row visible even when its window no longer owns focus. */
+ListView > ListItem.--highlight {
+    background: $surface-lighten-1;
+    color: $text-muted;
+}
+
+LivePanel:focus-within ListView > ListItem.--highlight,
+InventoryPanel:focus-within ListView > ListItem.--highlight,
+StepsPanel:focus-within ListView > ListItem.--highlight,
+ComponentsPanel:focus-within ListView > ListItem.--highlight {
+    background: $accent;
+    color: $text;
+}
+
 /* ── Right panels ─────────────────────────────────────────────────────────── */
 
 MainDisplay {

@@ -29,11 +29,23 @@ class EvolverTUI(App):
 
     BINDINGS = [
         Binding("q", "quit", "Quit"),
-        Binding("1", "focus_status", "Status", show=False),
-        Binding("2", "focus_live", "Live", show=False),
-        Binding("3", "focus_inventory", "Inventory", show=False),
-        Binding("4", "focus_steps", "Steps", show=False),
-        Binding("5", "focus_components", "Components", show=False),
+        Binding("1", "focus_status", "Status", show=False, priority=True),
+        Binding("2", "focus_live", "Live", show=False, priority=True),
+        Binding(
+            "3",
+            "focus_inventory",
+            "Inventory",
+            show=False,
+            priority=True,
+        ),
+        Binding("4", "focus_steps", "Steps", show=False, priority=True),
+        Binding(
+            "5",
+            "focus_components",
+            "Components",
+            show=False,
+            priority=True,
+        ),
     ]
 
     def __init__(self, api_url: str = "http://127.0.0.1:18082") -> None:
@@ -282,7 +294,12 @@ class EvolverTUI(App):
         for panel_selector in selectors:
             panel = self.query_one(panel_selector)
             panel.display = True
-        self.query_one(selector).focus()
+        panel = self.query_one(selector)
+        focus_default = getattr(panel, "focus_default", None)
+        if callable(focus_default):
+            focus_default()
+        else:
+            panel.focus()
 
 
 def main() -> None:

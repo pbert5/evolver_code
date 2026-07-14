@@ -71,10 +71,35 @@ def _experiment_protocol(experiment: dict) -> str:
         metadata = {}
     return experiment.get("protocol") or metadata.get("protocol", "-")
 
+
+def _item_key(item: dict, fallback: str = "") -> str:
+    for key in ("id", "name"):
+        value = item.get(key)
+        if value:
+            return str(value)
+    return fallback
+
+
+def _restore_list_index(
+    list_view: ListView,
+    items: list[dict],
+    old_key: Optional[str],
+    old_idx: int,
+) -> None:
+    if not items:
+        return
+    idx = min(old_idx, len(items) - 1)
+    if old_key is not None:
+        for candidate_idx, item in enumerate(items):
+            if _item_key(item, str(candidate_idx)) == old_key:
+                idx = candidate_idx
+                break
+    list_view.index = idx
+
 # ── [1] Status ────────────────────────────────────────────────────────────────
 
 
-class StatusPanel(Widget):
+class StatusPanel(Widget, can_focus=True):
     BORDER_TITLE = "[1] Status"
 
     def compose(self) -> ComposeResult:
@@ -93,6 +118,9 @@ class StatusPanel(Widget):
             else ""
         )
         self.query_one("#status-hint", Static).update(hint)
+
+    def focus_default(self) -> None:
+        self.focus()
 
 
 # ── [2] Live (tabs: Experiments | Evolver Units | Services) ───────────────────
@@ -186,26 +214,40 @@ class LivePanel(Widget):
             ListItem(Label("[dim]No configured services[/dim]"))
         )
 
+    def focus_default(self) -> None:
+        self.query_one(self._active_list_selector(), ListView).focus()
+
+    def _active_list_selector(self) -> str:
+        return {
+            "experiments": "#exp-list",
+            "evolvers": "#evolver-list",
+            "services": "#service-list",
+        }.get(self._tc().active, "#exp-list")
+
     # ── tab navigation ────────────────────────────────────────────────────────
 
     def _tc(self) -> TabbedContent:
         return self.query_one("#live-tabs", TabbedContent)
 
     def action_next_tab(self) -> None:
-        tc = self._tc()
-        try:
-            idx = self._TABS.index(tc.active)
-        except ValueError:
-            idx = 0
-        tc.active = self._TABS[(idx + 1) % len(self._TABS)]
+        self._switch_tab(1)
 
     def action_prev_tab(self) -> None:
+        self._switch_tab(-1)
+
+    def _switch_tab(self, delta: int) -> None:
         tc = self._tc()
         try:
             idx = self._TABS.index(tc.active)
         except ValueError:
             idx = 0
-        tc.active = self._TABS[(idx - 1) % len(self._TABS)]
+        tc.active = self._TABS[(idx + delta) % len(self._TABS)]
+        self.call_after_refresh(self.focus_default)
+
+    def on_tabbed_content_tab_activated(
+        self, _event: TabbedContent.TabActivated
+    ) -> None:
+        self.call_after_refresh(self.focus_default)
 
     def action_fuzzy_search(self) -> None:
         tc = self._tc()
@@ -216,21 +258,31 @@ class LivePanel(Widget):
     # ── experiment list ───────────────────────────────────────────────────────
 
     def update_experiments(self, experiments: list[dict]) -> None:
-        self._experiments = experiments
         lv = self.query_one("#exp-list", ListView)
         old_idx = lv.index if lv.index is not None else 0
+        old_key = (
+            _item_key(self._experiments[old_idx], str(old_idx))
+            if 0 <= old_idx < len(self._experiments)
+            else None
+        )
+        self._experiments = experiments
         lv.clear()
         for exp in experiments:
             icon = _STATE_ICONS.get(exp.get("state", ""), "?")
             name = _experiment_name(exp)
             state = exp.get("state", "?")
             lv.append(ListItem(Label(f" {icon} {name}  [{state}]")))
-        if experiments:
-            lv.index = min(old_idx, len(experiments) - 1)
+        _restore_list_index(lv, experiments, old_key, old_idx)
 
     def update_devices(self, devices: list[dict]) -> None:
-        self._devices = devices
         lv = self.query_one("#evolver-list", ListView)
+        old_idx = lv.index if lv.index is not None else 0
+        old_key = (
+            _item_key(self._devices[old_idx], str(old_idx))
+            if 0 <= old_idx < len(self._devices)
+            else None
+        )
+        self._devices = devices
         lv.clear()
         if not devices:
             lv.append(
@@ -242,6 +294,7 @@ class LivePanel(Widget):
             state = dev.get("state", "unknown")
             icon = "●" if state == "active" else "○"
             lv.append(ListItem(Label(f" {icon} {name}  [{state}]")))
+        _restore_list_index(lv, devices, old_key, old_idx)
 
     def update_jobs(self, jobs: list[dict]) -> None:
         lv = self.query_one("#service-list", ListView)
@@ -257,9 +310,14 @@ class LivePanel(Widget):
             lv.append(ListItem(Label(f" {icon} {name}  [{state}]")))
 
     def update_services(self, services: list[dict]) -> None:
-        self._services = services
         lv = self.query_one("#service-list", ListView)
         old_idx = lv.index if lv.index is not None else 0
+        old_key = (
+            _item_key(self._services[old_idx], str(old_idx))
+            if 0 <= old_idx < len(self._services)
+            else None
+        )
+        self._services = services
         lv.clear()
         if not services:
             lv.append(ListItem(Label("[dim]No configured services[/dim]")))
@@ -279,7 +337,7 @@ class LivePanel(Widget):
                     )
                 )
             )
-        lv.index = min(old_idx, len(services) - 1)
+        _restore_list_index(lv, services, old_key, old_idx)
 
     # ── selection events ──────────────────────────────────────────────────────
 
@@ -411,26 +469,40 @@ class InventoryPanel(Widget):
                 ListItem(Label(f"[dim]{msg}[/dim]"))
             )
 
+    def focus_default(self) -> None:
+        self.query_one(self._active_list_selector(), ListView).focus()
+
+    def _active_list_selector(self) -> str:
+        return {
+            "protocols": "#proto-list",
+            "materials": "#mat-list",
+            "devices": "#dev-list",
+        }.get(self._tc().active, "#proto-list")
+
     # ── tab navigation ────────────────────────────────────────────────────────
 
     def _tc(self) -> TabbedContent:
         return self.query_one("#inv-tabs", TabbedContent)
 
     def action_next_tab(self) -> None:
-        tc = self._tc()
-        try:
-            idx = self._TABS.index(tc.active)
-        except ValueError:
-            idx = 0
-        tc.active = self._TABS[(idx + 1) % len(self._TABS)]
+        self._switch_tab(1)
 
     def action_prev_tab(self) -> None:
+        self._switch_tab(-1)
+
+    def _switch_tab(self, delta: int) -> None:
         tc = self._tc()
         try:
             idx = self._TABS.index(tc.active)
         except ValueError:
             idx = 0
-        tc.active = self._TABS[(idx - 1) % len(self._TABS)]
+        tc.active = self._TABS[(idx + delta) % len(self._TABS)]
+        self.call_after_refresh(self.focus_default)
+
+    def on_tabbed_content_tab_activated(
+        self, _event: TabbedContent.TabActivated
+    ) -> None:
+        self.call_after_refresh(self.focus_default)
 
     def action_fuzzy_search(self) -> None:
         tc = self._tc()
@@ -466,9 +538,14 @@ class InventoryPanel(Widget):
     # ── data refresh ──────────────────────────────────────────────────────────
 
     def update_protocols(self, protocols: list[dict]) -> None:
-        self._protocols = protocols
         lv = self.query_one("#proto-list", ListView)
         old_idx = lv.index if lv.index is not None else 0
+        old_key = (
+            _item_key(self._protocols[old_idx], str(old_idx))
+            if 0 <= old_idx < len(self._protocols)
+            else None
+        )
+        self._protocols = protocols
         lv.clear()
         if not protocols:
             lv.append(ListItem(Label("[dim]No protocols — create one first[/dim]")))
@@ -477,11 +554,17 @@ class InventoryPanel(Widget):
             name = proto.get("name", "?")
             steps = len(proto.get("steps", []))
             lv.append(ListItem(Label(f" ○ {name}  [{steps} steps]")))
-        lv.index = min(old_idx, len(protocols) - 1)
+        _restore_list_index(lv, protocols, old_key, old_idx)
 
     def update_materials(self, materials: list[dict]) -> None:
-        self._materials = materials
         lv = self.query_one("#mat-list", ListView)
+        old_idx = lv.index if lv.index is not None else 0
+        old_key = (
+            _item_key(self._materials[old_idx], str(old_idx))
+            if 0 <= old_idx < len(self._materials)
+            else None
+        )
+        self._materials = materials
         lv.clear()
         if not materials:
             lv.append(ListItem(Label("[dim]No materials registered[/dim]")))
@@ -491,10 +574,17 @@ class InventoryPanel(Widget):
             mat_type = mat.get("type", "?")
             mat_id = mat.get("id", "")
             lv.append(ListItem(Label(f" · {name}  [{mat_type}]  {mat_id}")))
+        _restore_list_index(lv, materials, old_key, old_idx)
 
     def update_hw_devices(self, devices: list[dict]) -> None:
-        self._hw_devices = devices
         lv = self.query_one("#dev-list", ListView)
+        old_idx = lv.index if lv.index is not None else 0
+        old_key = (
+            _item_key(self._hw_devices[old_idx], str(old_idx))
+            if 0 <= old_idx < len(self._hw_devices)
+            else None
+        )
+        self._hw_devices = devices
         lv.clear()
         if not devices:
             lv.append(ListItem(Label("[dim]No devices configured[/dim]")))
@@ -505,6 +595,7 @@ class InventoryPanel(Widget):
             role = dev.get("io_role", "")
             suffix = f"  [{role}]" if role else ""
             lv.append(ListItem(Label(f" · {name}  [{dev_type}]{suffix}")))
+        _restore_list_index(lv, devices, old_key, old_idx)
 
 
 # ── [4] Steps ─────────────────────────────────────────────────────────────────
@@ -535,6 +626,9 @@ class StepsPanel(Widget):
             id="steps-header",
         )
         yield ListView(id="steps-list")
+
+    def focus_default(self) -> None:
+        self.query_one("#steps-list", ListView).focus()
 
     def load_protocol(
         self,
@@ -597,6 +691,9 @@ class ComponentsPanel(Widget):
             id="comp-header",
         )
         yield ListView(id="comp-list")
+
+    def focus_default(self) -> None:
+        self.query_one("#comp-list", ListView).focus()
 
     def load_protocol(self, protocol: dict) -> None:
         self._protocol = protocol
