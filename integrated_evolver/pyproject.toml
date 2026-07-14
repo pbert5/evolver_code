@@ -17,6 +17,7 @@ dependencies = [
 [project.scripts]
 integrated-evolver-control-plane = "evolver_integrated.control_daemon:main"
 integrated-evolver-broadcast-ingest = "evolver_integrated.broadcast_ingest_daemon:main"
+integrated-evolver-supervisor = "evolver_integrated.supervisor_daemon:main"
 integrated-evolver-tui = "evolver_integrated.tui.app:main"
 
 [tool.setuptools.packages.find]

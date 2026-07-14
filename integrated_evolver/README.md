@@ -27,16 +27,24 @@ Start the raw broadcast ingester:
 nix run .#run-broadcast-ingest
 ```
 
+Start the local service supervisor:
+
+```bash
+nix run .#run-supervisor
+```
+
 From the workspace root, the same apps are delegated through the main flake:
 
 ```bash
 nix run .#run-control-plane
 nix run .#run-broadcast-ingest
+nix run .#run-supervisor
 ```
 
 By default:
 
 - the control API listens on `127.0.0.1:18082`
+- the supervisor API listens on `127.0.0.1:18083`
 - both services use `EVOLVER_DATA_DIR`, then XDG/HOME fallbacks
 - both services talk to the existing eVOLVER server at
   `http://127.0.0.1:8081`

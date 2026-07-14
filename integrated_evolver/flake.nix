@@ -37,6 +37,8 @@
           controlPlane = mkRuntime "evolver_integrated.control_daemon" "run-control-plane";
           broadcastIngest =
             mkRuntime "evolver_integrated.broadcast_ingest_daemon" "run-broadcast-ingest";
+          supervisor =
+            mkRuntime "evolver_integrated.supervisor_daemon" "run-supervisor";
           tui = mkRuntime "evolver_integrated.tui.app" "run-tui";
         in
         {
@@ -49,6 +51,11 @@
             type = "app";
             program = "${broadcastIngest}/bin/run-broadcast-ingest";
             meta.description = "Persist eVOLVER broadcasts as raw data.";
+          };
+          "run-supervisor" = {
+            type = "app";
+            program = "${supervisor}/bin/run-supervisor";
+            meta.description = "Run the integrated eVOLVER service supervisor.";
           };
           "run-tui" = {
             type = "app";

@@ -69,6 +69,12 @@ def test_control_daemon_default_port_avoids_shared_inventory_conflict():
     assert args.port == 18082
 
 
+def test_control_daemon_accepts_supervisor_url():
+    args = parse_args(["--supervisor-url", "http://127.0.0.1:18083"])
+
+    assert args.supervisor_url == "http://127.0.0.1:18083"
+
+
 def test_socketio_hardware_client_forwards_validated_command():
     socket_client = FakeSocketClient()
     hardware = SocketIOHardwareClient(

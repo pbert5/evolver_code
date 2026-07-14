@@ -2,9 +2,9 @@ services:
   - id: control-plane
     name: Control Plane
     category: core
-    command: nix run .#run-control-plane
+    command: nix run .#run-control-plane -- --supervisor-url http://127.0.0.1:18083
     description: Local control-plane API and lifecycle coordinator.
-    supervisor_state: running
+    autostart: true
   - id: evolver-server
     name: eVOLVER Server
     category: managed

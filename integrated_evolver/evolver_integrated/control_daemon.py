@@ -16,6 +16,7 @@ from .runner_manager import DpuRunnerManager
 from .runtime_paths import default_data_dir
 from .service_manager import ServiceManager
 from .service_manager import default_service_catalog_path
+from .supervisor_client import SupervisorServiceManager
 
 
 DEFAULT_CONTROL_HOST = "127.0.0.1"
@@ -112,6 +113,11 @@ def parse_args(argv=None):
             default_service_catalog_path(),
         ),
     )
+    parser.add_argument(
+        "--supervisor-url",
+        default=os.environ.get("EVOLVER_SUPERVISOR_URL"),
+        help="Optional local supervisor URL for service lifecycle actions.",
+    )
     return parser.parse_args(argv)
 
 
@@ -120,6 +126,11 @@ def main(argv=None):
     app = create_app(
         data_dir=args.data_dir,
         hardware_url=args.hardware_url,
+        service_manager=(
+            SupervisorServiceManager(args.supervisor_url)
+            if args.supervisor_url
+            else None
+        ),
         services_config=args.services_config,
     )
     web.run_app(app, host=args.host, port=args.port)
