@@ -35,6 +35,17 @@ In another terminal, launch the TUI:
 nix run .#run-tui
 ```
 
+For TUI-only interaction testing, launch demo mode:
+
+```bash
+nix run .#run-tui -- --demo
+```
+
+Demo mode loads `evolver_integrated/tui/demo_data.json` with sample evolver
+units, devices, materials, protocols, and experiments so the TUI can be tested
+without attached hardware or populated local inventory. Inside the TUI, press
+`d` to load the same demo data into a running session.
+
 By default:
 
 - the supervisor API listens on `127.0.0.1:18083`
