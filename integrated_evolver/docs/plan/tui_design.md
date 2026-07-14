@@ -261,14 +261,20 @@ Sketch:
 ╰──────────────────────────────╯
 ```
 
-### Main Detail
+### [0] Context / Main Detail
 
-Purpose: detailed view for the selected object. It should avoid duplicating the
-left window and instead explain the selected object's context and next actions.
+Purpose: scrollable detailed view for the focused scope or selected object.
+It should avoid duplicating the left window and instead explain the selected
+object's context and next actions. `0` focuses this pane so the operator can
+scroll without leaving the keyboard workflow.
 
 Detail variants:
+- Scope detail: when no row is focused, explain what the focused window/tab is
+  for and which actions are relevant.
 - Experiment detail: state, protocol, machine/vials, runner, current step,
   recent events, lifecycle actions.
+- Evolver unit detail: online/offline, role, assigned experiments, attached
+  pumps/sensors/vials, latest readings when available.
 - Service detail: command, category, supervisor state, restart count, last
   action, logs tail, dependencies.
 - Protocol detail: description, step count, required materials/devices.
@@ -324,10 +330,11 @@ Visible:
 - [3] Inventory
 - [4] Steps
 - [5] Components
-- Main Detail
+- [0] Context / Main Detail
 - Command Log
 
-Number keys focus windows without hiding siblings.
+Number keys focus windows without hiding siblings. `0` focuses the right
+context pane; `1`-`5` focus the left windows.
 
 Tab switching inside a focused window (`[` / `]` or mouse click on a tab)
 must keep keyboard focus inside that same numbered window by moving focus to
@@ -343,10 +350,22 @@ TUI-owned selection marker rather than relying only on framework focus
 highlighting, so row `0` remains visibly selected after refreshes and tab
 changes.
 
+By default, list tabs do not auto-select the first row. If a list has no
+focused or active entry, the Context pane should show scope-level guidance and
+prompt arrow up/down or click to choose a row. Active entries are UI-only
+state: they may set nested context, toggle an option, or open a form, but do
+not directly imply hardware state.
+
 Polling refreshes should not visually rebuild unchanged lists. If a service
 snapshot is identical to the current one, the Services list must keep its
 existing rows in place so the selected row does not flash during routine
 polling.
+
+The structured TUI contract lives in
+`evolver_integrated/tui/tui_architecture.json`. Demo inventory, evolver units,
+protocol templates, component examples, services, and experiments live in
+`evolver_integrated/tui/demo_data.json` and can be loaded with `--demo` at
+startup or `d` at runtime.
 
 ### Service Scope
 

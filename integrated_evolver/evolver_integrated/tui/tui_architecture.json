@@ -1,0 +1,112 @@
+{
+  "version": 1,
+  "windows": [
+    {
+      "number": 0,
+      "id": "context",
+      "title": "Context",
+      "role": "scrollable detail pane",
+      "global_key": "0",
+      "shows": [
+        "focused scope overview",
+        "focused item details",
+        "nested parent context for protocol -> step -> component"
+      ]
+    },
+    {
+      "number": 1,
+      "id": "status",
+      "title": "Status",
+      "global_key": "1"
+    },
+    {
+      "number": 2,
+      "id": "live",
+      "title": "Live",
+      "global_key": "2",
+      "tabs": ["experiments", "evolver_units", "services"]
+    },
+    {
+      "number": 3,
+      "id": "inventory",
+      "title": "Inventory",
+      "global_key": "3",
+      "tabs": ["protocols", "materials", "devices"]
+    },
+    {
+      "number": 4,
+      "id": "steps",
+      "title": "Steps",
+      "global_key": "4",
+      "parent_context": "inventory.protocols.active"
+    },
+    {
+      "number": 5,
+      "id": "components",
+      "title": "Components",
+      "global_key": "5",
+      "parent_context": "steps.active"
+    }
+  ],
+  "global_keybindings": [
+    {"key": "0", "action": "focus_context", "description": "Focus context pane for scrolling"},
+    {"key": "1-5", "action": "focus_window", "description": "Focus numbered windows"},
+    {"key": "?", "action": "key_help", "description": "Fuzzy search available keybindings"},
+    {"key": "q", "action": "quit", "description": "Exit TUI"},
+    {"key": "ctrl+c", "action": "dismiss_or_quit", "description": "Dismiss popup first, otherwise exit TUI"},
+    {"key": "esc", "action": "clear_focus_or_deactivate", "description": "Clear focus, or deactivate active UI entry"}
+  ],
+  "list_keybindings": [
+    {"key": "up/down", "action": "move_focus", "description": "Move transient focus within current list"},
+    {"key": "space", "action": "activate", "description": "Set active entry, toggle flag, or select where supported"},
+    {"key": "enter", "action": "open", "description": "Open detail popup or form where supported"},
+    {"key": "a", "action": "add", "description": "Add entry for the current tab"},
+    {"key": "e", "action": "edit", "description": "Edit focused entry"},
+    {"key": "delete", "action": "delete", "description": "Delete focused entry"},
+    {"key": "/", "action": "search", "description": "Fuzzy search current list"}
+  ],
+  "activation_model": {
+    "ui_only": true,
+    "types": [
+      {
+        "type": "context",
+        "description": "Sets one or more nested UI contexts, such as protocol then step."
+      },
+      {
+        "type": "toggle",
+        "description": "Toggles an enabled/value flag, such as component enabled."
+      },
+      {
+        "type": "form",
+        "description": "Opens a popup form and does not retain persistent focus after the form closes."
+      }
+    ],
+    "selection_states": [
+      "none",
+      "focused",
+      "active",
+      "active_inactive_window"
+    ]
+  },
+  "forms": {
+    "constraints": [
+      "only one popup at a time",
+      "tab/shift+tab moves between fields",
+      "progress is retained while moving between fields",
+      "supports text entry, checkbox, and multi-select fields",
+      "field options may depend on active UI context"
+    ],
+    "planned_forms": [
+      "experiment.create",
+      "evolver.import_or_configure",
+      "inventory.protocol.create",
+      "inventory.material.create",
+      "inventory.device.create"
+    ]
+  },
+  "demo_mode": {
+    "startup_flag": "--demo",
+    "runtime_key": "d",
+    "data_file": "demo_data.json"
+  }
+}

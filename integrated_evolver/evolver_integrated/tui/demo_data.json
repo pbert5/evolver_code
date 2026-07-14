@@ -1,0 +1,141 @@
+{
+  "experiments": [
+    {
+      "id": "demo-exp-od",
+      "state": "running",
+      "created_at": "demo",
+      "request": {
+        "name": "overnight-od-demo",
+        "machine_id": "demo-evolver-1",
+        "vials": [0, 1, 2],
+        "metadata": {"protocol": "turbidostat-demo"}
+      },
+      "runner": {
+        "state": "running",
+        "experiment_dir": "/demo/overnight-od"
+      }
+    },
+    {
+      "id": "demo-exp-cal",
+      "state": "created",
+      "created_at": "demo",
+      "request": {
+        "name": "calibration-check",
+        "machine_id": "demo-evolver-2",
+        "vials": [0],
+        "metadata": {"protocol": "calibration-demo"}
+      }
+    }
+  ],
+  "evolver_units": [
+    {
+      "id": "demo-evolver-1",
+      "name": "demo-evolver-a",
+      "state": "active",
+      "role": "growth-array",
+      "devices": [
+        {"id": "pump-a", "name": "Pump A", "type": "pump", "io_role": "media_in"},
+        {"id": "pump-b", "name": "Pump B", "type": "pump", "io_role": "waste_out"},
+        {"id": "od-a", "name": "OD Sensor A", "type": "sensor", "io_role": "od"}
+      ]
+    },
+    {
+      "id": "demo-evolver-2",
+      "name": "demo-evolver-b",
+      "state": "idle",
+      "role": "calibration",
+      "devices": [
+        {"id": "temp-b", "name": "Temp Sensor B", "type": "sensor", "io_role": "temperature"}
+      ]
+    }
+  ],
+  "services": [
+    {
+      "id": "control-plane",
+      "name": "Control Plane",
+      "state": "running",
+      "category": "core",
+      "restart_count": 0,
+      "last_action": "start",
+      "description": "Local HTTP API and lifecycle coordinator."
+    },
+    {
+      "id": "supervisor",
+      "name": "Supervisor",
+      "state": "running",
+      "category": "core",
+      "restart_count": 1,
+      "last_action": "restart",
+      "description": "Service lifecycle supervisor."
+    }
+  ],
+  "protocols": [
+    {
+      "id": "turbidostat-demo",
+      "name": "turbidostat-demo",
+      "description": "Maintain cultures near target OD with periodic dilution.",
+      "steps": [
+        {
+          "name": "inoculate",
+          "description": "Load starting culture and growth medium.",
+          "components": [
+            {"name": "starting culture", "type": "organism", "io_role": "sample", "enabled": true},
+            {"name": "growth medium", "type": "growth_medium", "io_role": "media_in", "enabled": true}
+          ]
+        },
+        {
+          "name": "grow to target OD",
+          "description": "Monitor OD until target range is reached.",
+          "components": [
+            {"name": "OD sensor", "type": "sensor", "io_role": "od", "enabled": true},
+            {"name": "temperature control", "type": "controller", "io_role": "temperature", "enabled": true}
+          ]
+        },
+        {
+          "name": "maintain dilution",
+          "description": "Dilute culture when OD exceeds threshold.",
+          "components": [
+            {"name": "media pump", "type": "pump", "io_role": "media_in", "enabled": true},
+            {"name": "waste pump", "type": "pump", "io_role": "waste_out", "enabled": true}
+          ]
+        }
+      ]
+    },
+    {
+      "id": "calibration-demo",
+      "name": "calibration-demo",
+      "description": "Exercise sensors and pumps with known references.",
+      "steps": [
+        {
+          "name": "prime pumps",
+          "description": "Move reference fluid through configured pump channels.",
+          "components": [
+            {"name": "reference fluid", "type": "reagent", "io_role": "media_in", "enabled": true}
+          ]
+        }
+      ]
+    }
+  ],
+  "materials": [
+    {
+      "id": "mat-ecoli",
+      "name": "E. coli demo strain",
+      "type": "organism",
+      "lot": "demo",
+      "description": "Safe placeholder organism record for UI testing."
+    },
+    {
+      "id": "mat-lb",
+      "name": "LB medium",
+      "type": "growth_medium",
+      "lot": "demo",
+      "description": "Demo growth medium available for protocol component assignment."
+    }
+  ],
+  "devices": [
+    {"id": "pump-a", "name": "Pump A", "type": "pump", "io_role": "media_in", "evolver_id": "demo-evolver-1"},
+    {"id": "pump-b", "name": "Pump B", "type": "pump", "io_role": "waste_out", "evolver_id": "demo-evolver-1"},
+    {"id": "od-a", "name": "OD Sensor A", "type": "sensor", "io_role": "od", "evolver_id": "demo-evolver-1"},
+    {"id": "temp-b", "name": "Temp Sensor B", "type": "sensor", "io_role": "temperature", "evolver_id": "demo-evolver-2"}
+  ]
+}

@@ -29,6 +29,9 @@ class EvolverTUI(App):
 
     BINDINGS = [
         Binding("q", "quit", "Quit"),
+        Binding("ctrl+c", "quit", "Quit", show=False),
+        Binding("?", "key_help", "Keys", priority=True),
+        Binding("0", "focus_main", "Context", show=False, priority=True),
         Binding("1", "focus_status", "Status", show=False, priority=True),
         Binding("2", "focus_live", "Live", show=False, priority=True),
         Binding(
@@ -46,13 +49,20 @@ class EvolverTUI(App):
             show=False,
             priority=True,
         ),
+        Binding("d", "load_demo_data", "Demo", show=False),
     ]
 
-    def __init__(self, api_url: str = "http://127.0.0.1:18082") -> None:
+    def __init__(
+        self,
+        api_url: str = "http://127.0.0.1:18082",
+        demo: bool = False,
+    ) -> None:
         super().__init__()
         self._client = ControlAPIClient(api_url)
         self._experiments: list[dict] = []
         self._selected_experiment: Optional[dict] = None
+        self._demo_enabled = demo
+        self._demo_data: dict = {}
 
     def compose(self) -> ComposeResult:
         yield Header(show_clock=True)
@@ -69,16 +79,18 @@ class EvolverTUI(App):
         yield Footer()
 
     async def on_mount(self) -> None:
+        if self._demo_enabled:
+            self._load_demo_fixture()
         await self._client.start()
         self._log("TUI started — polling control plane")
         self.set_interval(2.0, self._poll)
         await self._poll()
+        if self._demo_enabled:
+            self._apply_demo_static_data()
         self._show_left_panel("#live-panel")
 
     async def on_unmount(self) -> None:
         await self._client.stop()
-
-    # ── polling ───────────────────────────────────────────────────────────────
 
     async def _poll(self) -> None:
         await self._refresh_status()
@@ -98,6 +110,8 @@ class EvolverTUI(App):
             exps = await self._client.list_experiments()
         except APIError:
             exps = []
+        if self._demo_enabled and not exps:
+            exps = list(self._demo_data.get("experiments", []))
         self._experiments = exps
         self.query_one(LivePanel).update_experiments(exps)
         if self._selected_experiment is not None:
@@ -113,15 +127,30 @@ class EvolverTUI(App):
             services = await self._client.list_services()
         except APIError:
             services = []
+        if self._demo_enabled and not services:
+            services = list(self._demo_data.get("services", []))
         self.query_one(LivePanel).update_services(services)
-
-    # ── live panel message handlers ───────────────────────────────────────────
 
     def on_live_panel_experiment_selected(
         self, message: LivePanel.ExperimentSelected
     ) -> None:
         self._selected_experiment = message.experiment
         self.query_one(MainDisplay).show_experiment(message.experiment)
+
+    def on_live_panel_evolver_selected(
+        self, message: LivePanel.EvolverSelected
+    ) -> None:
+        self.query_one(MainDisplay).show_evolver(message.evolver)
+
+    def on_live_panel_service_selected(
+        self, message: LivePanel.ServiceSelected
+    ) -> None:
+        self.query_one(MainDisplay).show_service(message.service)
+
+    def on_live_panel_scope_focused(
+        self, message: LivePanel.ScopeFocused
+    ) -> None:
+        self.query_one(MainDisplay).show_scope(message.scope)
 
     async def on_live_panel_pause_requested(
         self, message: LivePanel.PauseRequested
@@ -225,13 +254,11 @@ class EvolverTUI(App):
         self, message: LivePanel.FuzzySearchRequested
     ) -> None:
         def on_result(selected: str | None) -> None:
-            pass  # TODO: select the matching item
+            pass
 
         self.push_screen(
             FuzzySearchScreen(message.items, message.context), on_result
         )
-
-    # ── inventory panel message handlers ──────────────────────────────────────
 
     def on_inventory_panel_protocol_selected(
         self, message: InventoryPanel.ProtocolSelected
@@ -241,17 +268,30 @@ class EvolverTUI(App):
         self.query_one(ComponentsPanel).load_protocol(proto)
         self.query_one(MainDisplay).show_protocol(proto)
 
+    def on_inventory_panel_material_selected(
+        self, message: InventoryPanel.MaterialSelected
+    ) -> None:
+        self.query_one(MainDisplay).show_material(message.material)
+
+    def on_inventory_panel_device_selected(
+        self, message: InventoryPanel.DeviceSelected
+    ) -> None:
+        self.query_one(MainDisplay).show_device(message.device)
+
+    def on_inventory_panel_scope_focused(
+        self, message: InventoryPanel.ScopeFocused
+    ) -> None:
+        self.query_one(MainDisplay).show_scope(message.scope)
+
     def on_inventory_panel_fuzzy_search_requested(
         self, message: InventoryPanel.FuzzySearchRequested
     ) -> None:
         def on_result(selected: str | None) -> None:
-            pass  # TODO: select the matching item
+            pass
 
         self.push_screen(
             FuzzySearchScreen(message.items, message.context), on_result
         )
-
-    # ── steps panel message handlers ──────────────────────────────────────────
 
     def on_steps_panel_step_selected(
         self, message: StepsPanel.StepSelected
@@ -259,10 +299,48 @@ class EvolverTUI(App):
         self.query_one(ComponentsPanel).load_step(
             message.step, message.step_idx
         )
+        self.query_one(MainDisplay).show_step(
+            message.protocol,
+            message.step,
+            message.step_idx,
+        )
 
-    # ── focus actions (number keys) ───────────────────────────────────────────
+    def on_steps_panel_scope_focused(
+        self, message: StepsPanel.ScopeFocused
+    ) -> None:
+        if message.protocol:
+            self.query_one(MainDisplay).show_protocol(message.protocol)
+        else:
+            self.query_one(MainDisplay).show_scope("steps")
+
+    def on_components_panel_component_selected(
+        self, message: ComponentsPanel.ComponentSelected
+    ) -> None:
+        self.query_one(MainDisplay).show_component(
+            message.protocol,
+            message.step,
+            message.component,
+        )
+
+    def on_components_panel_scope_focused(
+        self, message: ComponentsPanel.ScopeFocused
+    ) -> None:
+        if message.step:
+            self.query_one(MainDisplay).show_step(
+                message.protocol,
+                message.step,
+                0,
+            )
+        elif message.protocol:
+            self.query_one(MainDisplay).show_protocol(message.protocol)
+        else:
+            self.query_one(MainDisplay).show_scope("components")
+
+    def action_focus_main(self) -> None:
+        self.query_one(MainDisplay).focus_default()
 
     def action_focus_status(self) -> None:
+        self.query_one(MainDisplay).show_scope("status")
         self._show_left_panel("#status-panel")
 
     def action_focus_live(self) -> None:
@@ -277,7 +355,58 @@ class EvolverTUI(App):
     def action_focus_components(self) -> None:
         self._show_left_panel("#comp-panel")
 
-    # ── helpers ───────────────────────────────────────────────────────────────
+    def action_key_help(self) -> None:
+        self.push_screen(
+            FuzzySearchScreen(self._available_key_help(), "keybindings")
+        )
+
+    def action_load_demo_data(self) -> None:
+        self._demo_enabled = True
+        self._load_demo_fixture()
+        self._apply_demo_static_data()
+        self.query_one(LivePanel).update_experiments(
+            list(self._demo_data.get("experiments", []))
+        )
+        self.query_one(LivePanel).update_services(
+            list(self._demo_data.get("services", []))
+        )
+        self._log("Demo data loaded")
+
+    def _load_demo_fixture(self) -> None:
+        if self._demo_data:
+            return
+        path = Path(__file__).parent / "demo_data.json"
+        try:
+            self._demo_data = __import__("json").loads(path.read_text())
+        except OSError as exc:
+            self._demo_data = {}
+            self._log(f"[red]ERROR demo data: {exc}[/red]")
+
+    def _apply_demo_static_data(self) -> None:
+        if not self._demo_data:
+            return
+        live = self.query_one(LivePanel)
+        inventory = self.query_one(InventoryPanel)
+        live.update_devices(list(self._demo_data.get("evolver_units", [])))
+        inventory.update_protocols(list(self._demo_data.get("protocols", [])))
+        inventory.update_materials(list(self._demo_data.get("materials", [])))
+        inventory.update_hw_devices(list(self._demo_data.get("devices", [])))
+
+    def _available_key_help(self) -> list[str]:
+        return [
+            "0 focus context/details pane",
+            "1-5 focus numbered windows",
+            "[ / ] switch tabs inside focused window",
+            "? search available keybindings",
+            "/ fuzzy search current list",
+            "a add entry in editable list scopes",
+            "e edit focused entry in editable list scopes",
+            "delete delete focused entry in editable list scopes",
+            "space set active/select where supported",
+            "d load demo data",
+            "q or ctrl+c exit TUI",
+            "escape clears focus/deactivates entries in a future slice",
+        ]
 
     def _log(self, msg: str) -> None:
         ts = datetime.now().strftime("%H:%M:%S")
@@ -309,8 +438,13 @@ def main() -> None:
         default="http://127.0.0.1:18082",
         help="Control plane API base URL",
     )
+    parser.add_argument(
+        "--demo",
+        action="store_true",
+        help="Load demo experiments, evolvers, inventory, and services.",
+    )
     args = parser.parse_args()
-    EvolverTUI(api_url=args.api_url).run()
+    EvolverTUI(api_url=args.api_url, demo=args.demo).run()
 
 
 if __name__ == "__main__":
