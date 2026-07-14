@@ -1,9 +1,8 @@
 {
   "version": 1,
-  "windows": [
-    {
+  "windows": {
+    "context": {
       "number": 0,
-      "id": "context",
       "title": "Context",
       "role": "scrollable detail pane",
       "global_key": "0",
@@ -13,41 +12,150 @@
         "nested parent context for protocol -> step -> component"
       ]
     },
-    {
+    "status": {
       "number": 1,
-      "id": "status",
       "title": "Status",
       "global_key": "1"
     },
-    {
+    "live": {
       "number": 2,
-      "id": "live",
       "title": "Live",
       "global_key": "2",
-      "tabs": ["experiments", "evolver_units", "services"]
+      "tabs": [
+        {
+          "id": "experiments",
+          "keybinds": {
+            "inherits": ["global_keybindings", "list_keybindings"],
+            "available": [
+              {"key": "a", "action": "experiment.create", "label": "Add experiment"},
+              {"key": "enter", "action": "experiment.open", "label": "Open experiment details"},
+              {"key": "r", "action": "experiment.run", "label": "Run focused experiment"},
+              {"key": "p", "action": "experiment.pause_or_resume", "label": "Pause/resume focused experiment"},
+              {"key": "c", "action": "experiment.cancel", "label": "Cancel focused experiment"},
+              {"key": "e", "action": "experiment.edit", "label": "Edit focused experiment"},
+              {"key": "delete", "action": "experiment.delete", "label": "Delete focused experiment"}
+            ]
+          }
+        },
+        {
+          "id": "evolver_units",
+          "keybinds": {
+            "inherits": ["global_keybindings", "list_keybindings"],
+            "available": [
+              {"key": "a", "action": "evolver.import_or_configure", "label": "Add/import evolver unit"},
+              {"key": "enter", "action": "evolver.open", "label": "Open unit details"},
+              {"key": "space", "action": "evolver.configure", "label": "Open unit config"},
+              {"key": "e", "action": "evolver.edit", "label": "Edit unit"},
+              {"key": "delete", "action": "evolver.delete", "label": "Delete unit"}
+            ]
+          }
+        },
+        {
+          "id": "services",
+          "keybinds": {
+            "inherits": ["global_keybindings", "list_keybindings"],
+            "modifies": [
+              {"key": "enter", "action": "service.start_if_inactive", "label": "Start inactive service"},
+              {"key": "space", "action": "service.config", "label": "Open service config popup"}
+            ],
+            "available": [
+              {"key": "r", "action": "service.restart", "label": "Restart focused service"},
+              {"key": "p", "action": "service.pause_or_resume", "label": "Pause/resume focused service"},
+              {"key": "s", "action": "service.start", "label": "Start focused service"},
+              {"key": "x", "action": "service.stop", "label": "Stop focused service"},
+              {"key": "/", "action": "service.search", "label": "Search services"}
+            ]
+          }
+        }
+      ]
     },
-    {
+    "inventory": {
       "number": 3,
-      "id": "inventory",
       "title": "Inventory",
       "global_key": "3",
-      "tabs": ["protocols", "materials", "devices"]
+      "tabs": [
+        {
+          "id": "protocols",
+          "keybinds": {
+            "inherits": ["global_keybindings", "list_keybindings"],
+            "available": [
+              {"key": "a", "action": "protocol.create", "label": "Add protocol"},
+              {"key": "space", "action": "protocol.set_active", "label": "Set active protocol context"},
+              {"key": "enter", "action": "protocol.open", "label": "Open protocol"},
+              {"key": "e", "action": "protocol.edit", "label": "Edit protocol"},
+              {"key": "delete", "action": "protocol.delete", "label": "Delete protocol"}
+            ]
+          }
+        },
+        {
+          "id": "materials",
+          "keybinds": {
+            "inherits": ["global_keybindings", "list_keybindings"],
+            "available": [
+              {"key": "a", "action": "material.create", "label": "Add material"},
+              {"key": "enter", "action": "material.open", "label": "Open material"},
+              {"key": "e", "action": "material.edit", "label": "Edit material"},
+              {"key": "delete", "action": "material.delete", "label": "Delete material"}
+            ]
+          }
+        },
+        {
+          "id": "devices",
+          "keybinds": {
+            "inherits": ["global_keybindings", "list_keybindings"],
+            "available": [
+              {"key": "a", "action": "device.create", "label": "Add device"},
+              {"key": "u", "action": "device.auto_discover", "label": "Auto discover devices"},
+              {"key": "enter", "action": "device.open", "label": "Open device"},
+              {"key": "e", "action": "device.edit", "label": "Edit device"},
+              {"key": "delete", "action": "device.delete", "label": "Delete device"}
+            ]
+          }
+        }
+      ]
     },
-    {
+    "steps": {
       "number": 4,
-      "id": "steps",
       "title": "Steps",
       "global_key": "4",
-      "parent_context": "inventory.protocols.active"
+      "parent_context": "inventory.protocols.active",
+      "tabs": [
+        {
+          "id": "default",
+          "keybinds": {
+            "inherits": ["global_keybindings", "list_keybindings"],
+            "available": [
+              {"key": "enter", "action": "step.open", "label": "Open step context"},
+              {"key": "a", "action": "step.create", "label": "Add step"},
+              {"key": "e", "action": "step.edit", "label": "Edit step"},
+              {"key": "delete", "action": "step.delete", "label": "Delete step"}
+            ]
+          }
+        }
+      ]
     },
-    {
+    "components": {
       "number": 5,
-      "id": "components",
       "title": "Components",
       "global_key": "5",
-      "parent_context": "steps.active"
+      "parent_context": "steps.active",
+      "tabs": [
+        {
+          "id": "default",
+          "keybinds": {
+            "inherits": ["global_keybindings", "list_keybindings"],
+            "available": [
+              {"key": "space", "action": "component.toggle_enabled", "label": "Toggle component enabled"},
+              {"key": "enter", "action": "component.open", "label": "Open component context"},
+              {"key": "a", "action": "component.create", "label": "Add component"},
+              {"key": "e", "action": "component.edit", "label": "Edit component"},
+              {"key": "delete", "action": "component.delete", "label": "Delete component"}
+            ]
+          }
+        }
+      ]
     }
-  ],
+  },
   "global_keybindings": [
     {"key": "0", "action": "focus_context", "description": "Focus context pane for scrolling"},
     {"key": "1-5", "action": "focus_window", "description": "Focus numbered windows"},

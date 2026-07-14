@@ -236,6 +236,48 @@ class EvolverTUI(App):
             self._log(f"[red]ERROR service: {exc}[/red]")
         await self._refresh_services()
 
+    def on_live_panel_service_config_requested(
+        self, message: LivePanel.ServiceConfigRequested
+    ) -> None:
+        service = message.service
+        items = self._service_config_items(service)
+        if not items:
+            self.query_one(MainDisplay).show_scope("service.no_config")
+            return
+        title = f"{service.get('name', service.get('id', '?'))} config"
+        self.push_screen(FuzzySearchScreen(items, title))
+
+    def _service_config_items(self, service: dict) -> list[str]:
+        items: list[str] = []
+        for key in (
+            "id",
+            "name",
+            "state",
+            "category",
+            "description",
+            "command",
+            "supervisor_state",
+            "restart_count",
+            "last_action",
+        ):
+            value = service.get(key)
+            if value not in (None, "", [], {}):
+                items.append(f"{key}: {value}")
+
+        for key in ("config", "environment", "ports", "volumes"):
+            value = service.get(key)
+            if isinstance(value, dict):
+                items.extend(
+                    f"{key}.{entry_key}: {entry_value}"
+                    for entry_key, entry_value in sorted(value.items())
+                )
+            elif isinstance(value, list):
+                items.extend(f"{key}: {entry}" for entry in value)
+            elif value not in (None, ""):
+                items.append(f"{key}: {value}")
+
+        return items
+
     def on_live_panel_new_requested(
         self, _message: LivePanel.NewRequested
     ) -> None:
@@ -396,13 +438,17 @@ class EvolverTUI(App):
         return [
             "0 focus context/details pane",
             "1-5 focus numbered windows",
-            "[ / ] switch tabs inside focused window",
+            "[ / ] or left/right switch tabs inside focused window",
             "? search available keybindings",
             "/ fuzzy search current list",
             "a add entry in editable list scopes",
             "e edit focused entry in editable list scopes",
             "delete delete focused entry in editable list scopes",
-            "space set active/select where supported",
+            "enter activate focused row; starts inactive services",
+            "space select/configure focused row; opens service config when available",
+            "r restart focused service or run selected experiment",
+            "p pause/resume supported live entries",
+            "x stop/delete supported focused entries",
             "d load demo data",
             "q or ctrl+c exit TUI",
             "escape clears focus/deactivates entries in a future slice",

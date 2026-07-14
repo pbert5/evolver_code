@@ -150,6 +150,8 @@ class LivePanel(Widget):
         Binding("[,left", "prev_tab", "Prev tab", show=False),
         Binding("],right", "next_tab", "Next tab", show=False),
         Binding("/", "fuzzy_search", "Search", show=True),
+        Binding("enter", "activate_item", "Start/Open"),
+        Binding("space", "config_item", "Config"),
         Binding("a", "new_exp", "Add experiment"),
         Binding("e", "edit_item", "Edit"),
         Binding("delete", "delete_item", "Delete"),
@@ -171,6 +173,11 @@ class LivePanel(Widget):
             super().__init__()
 
     class ServiceSelected(Message):
+        def __init__(self, service: dict) -> None:
+            self.service = service
+            super().__init__()
+
+    class ServiceConfigRequested(Message):
         def __init__(self, service: dict) -> None:
             self.service = service
             super().__init__()
@@ -303,7 +310,7 @@ class LivePanel(Widget):
             icon = _STATE_ICONS.get(exp.get("state", ""), "?")
             name = _experiment_name(exp)
             state = exp.get("state", "?")
-            lv.append(ListItem(Label(f" {icon} {name}  [{state}]")))
+            lv.append(ListItem(Label(f" [bold]{icon}[/bold] {name}  [{state}]")))
         _restore_list_index(lv, experiments, old_key, old_idx)
 
     def update_devices(self, devices: list[dict]) -> None:
@@ -327,7 +334,7 @@ class LivePanel(Widget):
             name = dev.get("name", dev.get("id", "?"))
             state = dev.get("state", "unknown")
             icon = "●" if state == "active" else "○"
-            lv.append(ListItem(Label(f" {icon} {name}  [{state}]")))
+            lv.append(ListItem(Label(f" [bold]{icon}[/bold] {name}  [{state}]")))
         _restore_list_index(lv, devices, old_key, old_idx)
 
     def update_jobs(self, jobs: list[dict]) -> None:
@@ -343,7 +350,7 @@ class LivePanel(Widget):
             state = job.get("state", "?")
             name = job.get("name", job.get("job_type", "?"))
             icon = "●" if state in ("running", "queued") else "○"
-            lv.append(ListItem(Label(f" {icon} {name}  [{state}]")))
+            lv.append(ListItem(Label(f" [bold]{icon}[/bold] {name}  [{state}]")))
         _restore_list_index(lv, jobs, None, lv.index)
 
     def update_services(self, services: list[dict]) -> None:
@@ -373,7 +380,7 @@ class LivePanel(Widget):
             lv.append(
                 ListItem(
                     Label(
-                        f" [{color}]{icon}[/{color}] {name}"
+                        f" [bold {color}]{icon}[/bold {color}] {name}"
                         f"  [{category}/{state}]"
                     )
                 )
@@ -416,6 +423,25 @@ class LivePanel(Widget):
         if idx is not None and 0 <= idx < len(self._devices):
             return self._devices[idx]
         return None
+
+    def action_activate_item(self) -> None:
+        if self._tc().active == "services":
+            service = self._focused_service()
+            state = str(service.get("state", "")).lower() if service else ""
+            if service and state not in {"running", "paused"}:
+                self.post_message(
+                    self.ServiceActionRequested(service["id"], "start")
+                )
+                return
+        self._post_current_context()
+
+    def action_config_item(self) -> None:
+        if self._tc().active == "services":
+            service = self._focused_service()
+            if service:
+                self.post_message(self.ServiceConfigRequested(service))
+                return
+        self._post_current_context()
 
     def action_pause_or_resume(self) -> None:
         if self._tc().active == "services":
@@ -973,6 +999,8 @@ class MainDisplay(Widget, can_focus=True):
                 "",
                 "System health and operator attention live here.",
                 "Use this window to jump from a degraded condition to the relevant repair scope.",
+                "",
+                "Suggested: [1-5] focus window, [/] search, [?] key help.",
             ],
             "live.experiments": [
                 "[bold][2] Live / Experiments[/bold]",
@@ -980,41 +1008,60 @@ class MainDisplay(Widget, can_focus=True):
                 "Runtime experiment sessions appear here.",
                 "No experiment is selected yet. Use up/down or click an experiment to inspect it.",
                 "",
-                "Suggested: a add experiment, / search, r run, p pause/resume, c cancel.",
+                "Suggested: [1-5] focus window, left/right tabs, [a] add experiment, [/] search, [r] run, [p] pause/resume, [c] cancel.",
             ],
             "live.evolvers": [
                 "[bold][2] Live / Evolver Units[/bold]",
                 "",
                 "Connected or demo eVOLVER units appear here.",
                 "Use this scope to inspect unit status, assignment, and available onboard devices.",
+                "",
+                "Suggested: [1-5] focus window, left/right tabs, [a] add evolver, [d] load demo data, [/] search.",
             ],
             "live.services": [
                 "[bold][2] Live / Services[/bold]",
                 "",
                 "Supervisor-managed services appear here.",
-                "Select a service to inspect lifecycle state and restart controls.",
+                "Select a service to inspect lifecycle state and lifecycle controls.",
+                "",
+                "Suggested: [1-5] focus window, left/right tabs, [enter] start inactive service, [space] config, [r] restart, [p] pause/resume, [x] stop, [/] search.",
             ],
             "inventory.protocols": [
                 "[bold][3] Inventory / Protocols[/bold]",
                 "",
                 "Protocols define reusable experiment procedures for the current setup.",
                 "Select a protocol to load its steps and component requirements.",
+                "",
+                "Suggested: [1-5] focus window, left/right tabs, [a] add protocol, [e] edit, [x] delete, [/] search.",
             ],
             "inventory.materials": [
                 "[bold][3] Inventory / Materials[/bold]",
                 "",
                 "Materials describe organisms, media, reagents, samples, waste, and other lab inputs available to this eVOLVER setup.",
+                "",
+                "Suggested: [1-5] focus window, left/right tabs, [a] add material, [e] edit, [x] delete, [/] search.",
             ],
             "inventory.devices": [
                 "[bold][3] Inventory / Devices[/bold]",
                 "",
                 "Devices describe pumps, sensors, vials, and I/O roles available to this eVOLVER setup.",
                 "Use discover/import flows to populate hardware-backed entries.",
+                "",
+                "Suggested: [1-5] focus window, left/right tabs, [a] add device, [u] auto discover, [e] edit, [x] delete, [/] search.",
             ],
             "inventory.discover": [
                 "[bold]Auto Discover[/bold]",
                 "",
                 "Future flow: scan attached eVOLVER hardware, choose detected units, import their config, or create demo units.",
+                "",
+                "Suggested: [enter] run discovery, [esc] return focus, [?] key help.",
+            ],
+            "service.no_config": [
+                "[bold]Service Config[/bold]",
+                "",
+                "The focused service does not currently expose config details in the TUI payload.",
+                "",
+                "Suggested: [enter] start inactive service, [r] restart, [x] stop.",
             ],
         }
         if scope.startswith(("add.", "edit.", "delete.")):
@@ -1024,6 +1071,8 @@ class MainDisplay(Widget, can_focus=True):
                 "",
                 "This will open a form-driven popup in the next slice.",
                 "Forms should preserve progress while moving through text fields, checkboxes, and multi-select choices.",
+                "",
+                "Suggested: [tab] next field, [shift+tab] previous field, [enter] submit, [ctrl+c] close popup.",
             ])
             return
         self._update(content.get(scope, ["[bold]Context[/bold]", "", scope]))
@@ -1071,8 +1120,13 @@ class MainDisplay(Widget, can_focus=True):
         self._update(lines)
 
     def show_service(self, service: dict) -> None:
+        state = str(service.get("state", "unknown")).lower()
+        if state in {"running", "paused"}:
+            suggestions = "Suggested: [space] config, [r] restart, [p] pause/resume, [x] stop, [/] search."
+        else:
+            suggestions = "Suggested: [enter] start inactive service, [space] config, [r] restart, [x] stop, [/] search."
         lines = [
-            f"[bold]Service: {service.get('name', service.get('id', '?'))}[/bold]",
+            f"[bold][2] Live / Services / {service.get('name', service.get('id', '?'))}[/bold]",
             "",
             f"  ID:        [dim]{service.get('id', '?')}[/dim]",
             f"  State:     {service.get('state', 'unknown')}",
@@ -1082,6 +1136,7 @@ class MainDisplay(Widget, can_focus=True):
         ]
         if service.get("description"):
             lines.extend(["", service["description"]])
+        lines.extend(["", suggestions])
         self._update(lines)
 
     def show_protocol(self, protocol: dict) -> None:

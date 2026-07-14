@@ -71,7 +71,7 @@ LivePanel:focus-within ListView > ListItem.persistent-highlight,
 InventoryPanel:focus-within ListView > ListItem.persistent-highlight,
 StepsPanel:focus-within ListView > ListItem.persistent-highlight,
 ComponentsPanel:focus-within ListView > ListItem.persistent-highlight {
-    background: $accent;
+    background: $surface-lighten-2;
     color: $text;
 }
 

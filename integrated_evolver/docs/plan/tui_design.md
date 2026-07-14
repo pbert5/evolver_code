@@ -447,6 +447,21 @@ services unless they explicitly depend on it.
 6. Selecting a step loads component bindings.
 7. Main Detail shows protocol or step detail.
 
+## Keybinding Architecture
+
+The architecture JSON keeps windows in a keyed object by window name, with the
+numeric focus key stored on each window entry. Scoped shortcuts live on the tab
+entry that owns them: `windows.<name>.tabs[].keybinds`. Each tab declares
+inherited global/list bindings, plus any available actions or modifications for
+that tab. This keeps key suggestions aligned with the current window, tab, and
+focused line instead of maintaining a separate tab-keymap table.
+
+The context pane should show the same scope-aware suggestions the operator can
+use in the focused tab. For Live / Services, `enter` starts an inactive focused
+service and `space` opens the service config popup when config details are
+available. Focused rows use a lower-intensity persistent highlight, while status
+symbols are bold so state changes remain readable on highlighted rows.
+
 ## Open Design Questions
 
 - Should the TUI talk directly to supervisor as a fallback when the control
