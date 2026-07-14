@@ -4,3 +4,5 @@
 .pytest_cache/
 coverage.xml
 htmlcov/
+integrated_evolver/docs/plan/design/integrated_architecture_transition.pdf
+metadata/Bio Automation plate submission_1.0.5_ALE_culture_plate_template.xlsx
