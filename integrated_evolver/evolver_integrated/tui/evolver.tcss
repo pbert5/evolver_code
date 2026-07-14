@@ -9,7 +9,7 @@ Screen {
 }
 
 #left-col {
-    width: 32;
+    width: 34;
     height: 100%;
 }
 
@@ -18,44 +18,49 @@ Screen {
     height: 100%;
 }
 
-/* Left panels */
+/* ── Left panels ──────────────────────────────────────────────────────────── */
 
 StatusPanel {
-    height: 5;
+    height: 4;
     border: round $primary;
     padding: 0 1;
 }
 
-ExperimentsPanel {
+LivePanel {
     height: 1fr;
     border: round $primary;
 }
 
-ProtocolsPanel {
+InventoryPanel {
     height: 1fr;
     border: round $primary;
 }
 
-BioreactorsPanel {
-    height: 8;
+StepsPanel {
+    height: 1fr;
     border: round $primary;
 }
 
-ProcessesPanel {
-    height: 7;
+ComponentsPanel {
+    height: 1fr;
     border: round $primary;
 }
 
-/* Focus highlight: active panel gets accent border */
+/* Active panel gets accent border */
 StatusPanel:focus-within,
-ExperimentsPanel:focus-within,
-ProtocolsPanel:focus-within,
-BioreactorsPanel:focus-within,
-ProcessesPanel:focus-within {
+LivePanel:focus-within,
+InventoryPanel:focus-within,
+StepsPanel:focus-within,
+ComponentsPanel:focus-within {
     border: round $accent;
 }
 
-/* Right panels */
+/* Tab bar styling */
+TabbedContent > Tabs {
+    height: 1;
+}
+
+/* ── Right panels ─────────────────────────────────────────────────────────── */
 
 MainDisplay {
     height: 1fr;
@@ -64,11 +69,6 @@ MainDisplay {
 }
 
 #cmd-log {
-    height: 10;
+    height: 9;
     border: round $primary-darken-3;
-}
-
-/* Dim list items that are placeholders */
-ListItem.-disabled Label {
-    color: $text-muted;
 }

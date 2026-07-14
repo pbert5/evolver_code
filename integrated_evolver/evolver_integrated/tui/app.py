@@ -13,14 +13,14 @@ from textual.widgets import Footer, Header, Log
 
 from .client import APIError, ControlAPIClient
 from .panels import (
-    BioreactorsPanel,
-    ExperimentsPanel,
+    ComponentsPanel,
+    InventoryPanel,
+    LivePanel,
     MainDisplay,
-    ProcessesPanel,
-    ProtocolsPanel,
+    StepsPanel,
     StatusPanel,
 )
-from .screens import ConfirmScreen, NewExperimentScreen
+from .screens import ConfirmScreen, FuzzySearchScreen, NewExperimentScreen
 
 
 class EvolverTUI(App):
@@ -30,10 +30,10 @@ class EvolverTUI(App):
     BINDINGS = [
         Binding("q", "quit", "Quit"),
         Binding("1", "focus_status", "Status", show=False),
-        Binding("2", "focus_experiments", "Experiments", show=False),
-        Binding("3", "focus_protocols", "Protocols", show=False),
-        Binding("4", "focus_bioreactors", "Bioreactors", show=False),
-        Binding("5", "focus_processes", "Processes", show=False),
+        Binding("2", "focus_live", "Live", show=False),
+        Binding("3", "focus_inventory", "Inventory", show=False),
+        Binding("4", "focus_steps", "Steps", show=False),
+        Binding("5", "focus_components", "Components", show=False),
     ]
 
     def __init__(self, api_url: str = "http://localhost:8080") -> None:
@@ -47,10 +47,10 @@ class EvolverTUI(App):
         with Horizontal(id="main-layout"):
             with Vertical(id="left-col"):
                 yield StatusPanel(id="status-panel")
-                yield ExperimentsPanel(id="experiments-panel")
-                yield ProtocolsPanel(id="protocols-panel")
-                yield BioreactorsPanel(id="bioreactors-panel")
-                yield ProcessesPanel(id="processes-panel")
+                yield LivePanel(id="live-panel")
+                yield InventoryPanel(id="inv-panel")
+                yield StepsPanel(id="steps-panel")
+                yield ComponentsPanel(id="comp-panel")
             with Vertical(id="right-col"):
                 yield MainDisplay(id="main-display")
                 yield Log(id="cmd-log", highlight=True, markup=True)
@@ -65,7 +65,7 @@ class EvolverTUI(App):
     async def on_unmount(self) -> None:
         await self._client.stop()
 
-    # --- Polling ---
+    # ── polling ───────────────────────────────────────────────────────────────
 
     async def _poll(self) -> None:
         await self._refresh_status()
@@ -86,7 +86,7 @@ class EvolverTUI(App):
         except APIError:
             exps = []
         self._experiments = exps
-        self.query_one(ExperimentsPanel).update_experiments(exps)
+        self.query_one(LivePanel).update_experiments(exps)
         if self._selected_experiment is not None:
             sel_id = self._selected_experiment.get("id")
             for exp in exps:
@@ -100,21 +100,18 @@ class EvolverTUI(App):
             jobs = await self._client.list_jobs()
         except APIError:
             jobs = []
-        self.query_one(ProcessesPanel).update_jobs(jobs)
+        self.query_one(LivePanel).update_jobs(jobs)
 
-    # --- Experiment panel message handlers ---
+    # ── live panel message handlers ───────────────────────────────────────────
 
-    def on_experiments_panel_experiment_selected(
-        self, message: ExperimentsPanel.ExperimentSelected
+    def on_live_panel_experiment_selected(
+        self, message: LivePanel.ExperimentSelected
     ) -> None:
         self._selected_experiment = message.experiment
         self.query_one(MainDisplay).show_experiment(message.experiment)
-        protocol = message.experiment.get("protocol_steps", {})
-        if isinstance(protocol, dict):
-            self.query_one(ProtocolsPanel).update_protocol(protocol)
 
-    async def on_experiments_panel_pause_requested(
-        self, message: ExperimentsPanel.PauseRequested
+    async def on_live_panel_pause_requested(
+        self, message: LivePanel.PauseRequested
     ) -> None:
         try:
             await self._client.pause_experiment(message.experiment_id)
@@ -123,8 +120,8 @@ class EvolverTUI(App):
             self._log(f"[red]ERROR pause: {exc}[/red]")
         await self._refresh_experiments()
 
-    async def on_experiments_panel_resume_requested(
-        self, message: ExperimentsPanel.ResumeRequested
+    async def on_live_panel_resume_requested(
+        self, message: LivePanel.ResumeRequested
     ) -> None:
         try:
             await self._client.resume_experiment(message.experiment_id)
@@ -133,8 +130,8 @@ class EvolverTUI(App):
             self._log(f"[red]ERROR resume: {exc}[/red]")
         await self._refresh_experiments()
 
-    def on_experiments_panel_stop_requested(
-        self, message: ExperimentsPanel.StopRequested
+    def on_live_panel_stop_requested(
+        self, message: LivePanel.StopRequested
     ) -> None:
         exp_id = message.experiment_id
         exp_name = message.experiment_name
@@ -155,11 +152,13 @@ class EvolverTUI(App):
             self._log(f"[red]ERROR stop: {exc}[/red]")
         await self._refresh_experiments()
 
-    def on_experiments_panel_run_requested(
-        self, message: ExperimentsPanel.RunRequested
+    def on_live_panel_run_requested(
+        self, message: LivePanel.RunRequested
     ) -> None:
         exp_id = message.experiment_id
-        running = [e for e in self._experiments if e.get("state") == "running"]
+        running = [
+            e for e in self._experiments if e.get("state") == "running"
+        ]
 
         async def do_start() -> None:
             try:
@@ -171,18 +170,18 @@ class EvolverTUI(App):
 
         if running:
             names = ", ".join(e.get("name", "?") for e in running)
+            msg = f"'{names}' is running. Start another?"
 
             def on_confirm(confirmed: bool) -> None:
                 if confirmed:
                     self.run_worker(do_start(), exclusive=True)
 
-            msg = f"'{names}' is running. Start another?"
             self.push_screen(ConfirmScreen(msg), on_confirm)
         else:
             self.run_worker(do_start(), exclusive=True)
 
-    def on_experiments_panel_new_requested(
-        self, _message: ExperimentsPanel.NewRequested
+    def on_live_panel_new_requested(
+        self, _message: LivePanel.NewRequested
     ) -> None:
         async def on_result(name: str | None) -> None:
             if name:
@@ -195,31 +194,63 @@ class EvolverTUI(App):
 
         self.push_screen(NewExperimentScreen(), on_result)
 
-    # --- Bioreactor panel message handlers ---
-
-    def on_bioreactors_panel_bioreactor_selected(
-        self, message: BioreactorsPanel.BioreactorSelected
+    def on_live_panel_fuzzy_search_requested(
+        self, message: LivePanel.FuzzySearchRequested
     ) -> None:
-        self.query_one(MainDisplay).show_device(message.device)
+        def on_result(selected: str | None) -> None:
+            pass  # TODO: select the matching item
 
-    # --- Focus actions (number keys) ---
+        self.push_screen(
+            FuzzySearchScreen(message.items, message.context), on_result
+        )
+
+    # ── inventory panel message handlers ──────────────────────────────────────
+
+    def on_inventory_panel_protocol_selected(
+        self, message: InventoryPanel.ProtocolSelected
+    ) -> None:
+        proto = message.protocol
+        self.query_one(StepsPanel).load_protocol(proto)
+        self.query_one(ComponentsPanel).load_protocol(proto)
+        self.query_one(MainDisplay).show_protocol(proto)
+
+    def on_inventory_panel_fuzzy_search_requested(
+        self, message: InventoryPanel.FuzzySearchRequested
+    ) -> None:
+        def on_result(selected: str | None) -> None:
+            pass  # TODO: select the matching item
+
+        self.push_screen(
+            FuzzySearchScreen(message.items, message.context), on_result
+        )
+
+    # ── steps panel message handlers ──────────────────────────────────────────
+
+    def on_steps_panel_step_selected(
+        self, message: StepsPanel.StepSelected
+    ) -> None:
+        self.query_one(ComponentsPanel).load_step(
+            message.step, message.step_idx
+        )
+
+    # ── focus actions (number keys) ───────────────────────────────────────────
 
     def action_focus_status(self) -> None:
         self.query_one("#status-panel").focus()
 
-    def action_focus_experiments(self) -> None:
-        self.query_one("#experiments-panel").focus()
+    def action_focus_live(self) -> None:
+        self.query_one("#live-panel").focus()
 
-    def action_focus_protocols(self) -> None:
-        self.query_one("#protocols-panel").focus()
+    def action_focus_inventory(self) -> None:
+        self.query_one("#inv-panel").focus()
 
-    def action_focus_bioreactors(self) -> None:
-        self.query_one("#bioreactors-panel").focus()
+    def action_focus_steps(self) -> None:
+        self.query_one("#steps-panel").focus()
 
-    def action_focus_processes(self) -> None:
-        self.query_one("#processes-panel").focus()
+    def action_focus_components(self) -> None:
+        self.query_one("#comp-panel").focus()
 
-    # --- Helpers ---
+    # ── helpers ───────────────────────────────────────────────────────────────
 
     def _log(self, msg: str) -> None:
         ts = datetime.now().strftime("%H:%M:%S")
@@ -231,7 +262,7 @@ def main() -> None:
     parser.add_argument(
         "--api-url",
         default="http://localhost:8080",
-        help="Control plane API base URL (default: http://localhost:8080)",
+        help="Control plane API base URL",
     )
     args = parser.parse_args()
     EvolverTUI(api_url=args.api_url).run()
