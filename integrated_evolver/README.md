@@ -36,7 +36,7 @@ nix run .#run-broadcast-ingest
 
 By default:
 
-- the control API listens on `127.0.0.1:8082`
+- the control API listens on `127.0.0.1:18082`
 - both services use `EVOLVER_DATA_DIR`, then XDG/HOME fallbacks
 - both services talk to the existing eVOLVER server at
   `http://127.0.0.1:8081`

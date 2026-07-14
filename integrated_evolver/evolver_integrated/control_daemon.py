@@ -19,7 +19,8 @@ from .service_manager import default_service_catalog_path
 
 
 DEFAULT_CONTROL_HOST = "127.0.0.1"
-DEFAULT_CONTROL_PORT = 8082
+# 8080-8082 are reserved in ~/flake/inventory/ports.nix for other services.
+DEFAULT_CONTROL_PORT = 18082
 DEFAULT_HARDWARE_URL = "http://127.0.0.1:8081"
 DEFAULT_NAMESPACE = "/dpu-evolver"
 

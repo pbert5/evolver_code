@@ -36,7 +36,7 @@ class EvolverTUI(App):
         Binding("5", "focus_components", "Components", show=False),
     ]
 
-    def __init__(self, api_url: str = "http://127.0.0.1:8082") -> None:
+    def __init__(self, api_url: str = "http://127.0.0.1:18082") -> None:
         super().__init__()
         self._client = ControlAPIClient(api_url)
         self._experiments: list[dict] = []
@@ -291,7 +291,7 @@ def main() -> None:
     parser = argparse.ArgumentParser(description="eVOLVER terminal UI")
     parser.add_argument(
         "--api-url",
-        default="http://127.0.0.1:8082",
+        default="http://127.0.0.1:18082",
         help="Control plane API base URL",
     )
     args = parser.parse_args()

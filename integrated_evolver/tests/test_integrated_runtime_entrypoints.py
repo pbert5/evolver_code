@@ -1,4 +1,6 @@
 from evolver_integrated.broadcast_ingest_daemon import create_client
+from evolver_integrated.control_daemon import DEFAULT_CONTROL_PORT
+from evolver_integrated.control_daemon import parse_args
 from evolver_integrated.control_api import start_runner_if_requested
 from evolver_integrated.control_daemon import SocketIOHardwareClient
 from evolver_integrated.messages import MessageValidationError
@@ -58,6 +60,13 @@ class FakeRunnerManager(object):
             "cwd": "/workspace/dpu",
             "returncode": None,
         }
+
+
+def test_control_daemon_default_port_avoids_shared_inventory_conflict():
+    args = parse_args([])
+
+    assert DEFAULT_CONTROL_PORT == 18082
+    assert args.port == 18082
 
 
 def test_socketio_hardware_client_forwards_validated_command():

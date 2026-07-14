@@ -110,7 +110,7 @@ def test_api_error_wraps_cause():
 def test_client_default_url():
     from evolver_integrated.tui.client import ControlAPIClient
     c = ControlAPIClient()
-    assert c.base_url == "http://127.0.0.1:8082"
+    assert c.base_url == "http://127.0.0.1:18082"
 
 
 def test_client_custom_url_strips_trailing_slash():
@@ -177,7 +177,7 @@ def test_client_service_action_posts_to_service_route(monkeypatch):
 def test_evolver_tui_default_url():
     from evolver_integrated.tui.app import EvolverTUI
     app = EvolverTUI()
-    assert app._client.base_url == "http://127.0.0.1:8082"
+    assert app._client.base_url == "http://127.0.0.1:18082"
 
 
 def test_evolver_tui_custom_url():
