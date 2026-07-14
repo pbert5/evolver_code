@@ -87,6 +87,7 @@ def _restore_list_index(
     old_idx: int,
 ) -> None:
     if not items:
+        _mark_list_selection(list_view)
         return
     idx = min(old_idx, len(items) - 1)
     if old_key is not None:
@@ -95,6 +96,15 @@ def _restore_list_index(
                 idx = candidate_idx
                 break
     list_view.index = idx
+    _mark_list_selection(list_view)
+
+
+def _mark_list_selection(list_view: ListView) -> None:
+    idx = list_view.index
+    for child_idx, child in enumerate(list_view.children):
+        if not isinstance(child, ListItem):
+            continue
+        child.set_class(child_idx == idx, "persistent-highlight")
 
 # ── [1] Status ────────────────────────────────────────────────────────────────
 
@@ -215,7 +225,9 @@ class LivePanel(Widget):
         )
 
     def focus_default(self) -> None:
-        self.query_one(self._active_list_selector(), ListView).focus()
+        list_view = self.query_one(self._active_list_selector(), ListView)
+        _mark_list_selection(list_view)
+        list_view.focus()
 
     def _active_list_selector(self) -> str:
         return {
@@ -344,6 +356,7 @@ class LivePanel(Widget):
     # ── selection events ──────────────────────────────────────────────────────
 
     def on_list_view_highlighted(self, _event: ListView.Highlighted) -> None:
+        _mark_list_selection(_event.list_view)
         tc = self._tc()
         if tc.active != "experiments":
             return
@@ -472,7 +485,9 @@ class InventoryPanel(Widget):
             )
 
     def focus_default(self) -> None:
-        self.query_one(self._active_list_selector(), ListView).focus()
+        list_view = self.query_one(self._active_list_selector(), ListView)
+        _mark_list_selection(list_view)
+        list_view.focus()
 
     def _active_list_selector(self) -> str:
         return {
@@ -530,6 +545,9 @@ class InventoryPanel(Widget):
 
     def on_list_view_selected(self, _event: ListView.Selected) -> None:
         self.action_select_item()
+
+    def on_list_view_highlighted(self, event: ListView.Highlighted) -> None:
+        _mark_list_selection(event.list_view)
 
     def _focused_protocol(self) -> Optional[dict]:
         idx = self.query_one("#proto-list", ListView).index
@@ -630,7 +648,9 @@ class StepsPanel(Widget):
         yield ListView(id="steps-list")
 
     def focus_default(self) -> None:
-        self.query_one("#steps-list", ListView).focus()
+        list_view = self.query_one("#steps-list", ListView)
+        _mark_list_selection(list_view)
+        list_view.focus()
 
     def load_protocol(
         self,
@@ -665,8 +685,9 @@ class StepsPanel(Widget):
             lv.append(ListItem(Label(f" {icon} {i + 1}. {label}")))
 
     def on_list_view_highlighted(
-        self, _event: ListView.Highlighted
+        self, event: ListView.Highlighted
     ) -> None:
+        _mark_list_selection(event.list_view)
         idx = self.query_one("#steps-list", ListView).index
         if idx is not None and 0 <= idx < len(self._steps):
             self.post_message(self.StepSelected(self._steps[idx], idx))
@@ -695,7 +716,9 @@ class ComponentsPanel(Widget):
         yield ListView(id="comp-list")
 
     def focus_default(self) -> None:
-        self.query_one("#comp-list", ListView).focus()
+        list_view = self.query_one("#comp-list", ListView)
+        _mark_list_selection(list_view)
+        list_view.focus()
 
     def load_protocol(self, protocol: dict) -> None:
         self._protocol = protocol

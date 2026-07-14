@@ -61,15 +61,15 @@ TabbedContent > Tabs {
 }
 
 /* Keep the selected row visible even when its window no longer owns focus. */
-ListView > ListItem.--highlight {
+ListView > ListItem.persistent-highlight {
     background: $surface-lighten-1;
     color: $text-muted;
 }
 
-LivePanel:focus-within ListView > ListItem.--highlight,
-InventoryPanel:focus-within ListView > ListItem.--highlight,
-StepsPanel:focus-within ListView > ListItem.--highlight,
-ComponentsPanel:focus-within ListView > ListItem.--highlight {
+LivePanel:focus-within ListView > ListItem.persistent-highlight,
+InventoryPanel:focus-within ListView > ListItem.persistent-highlight,
+StepsPanel:focus-within ListView > ListItem.persistent-highlight,
+ComponentsPanel:focus-within ListView > ListItem.persistent-highlight {
     background: $accent;
     color: $text;
 }

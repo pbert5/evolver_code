@@ -338,7 +338,10 @@ Each list keeps a persistent selected row while its backing item still exists.
 When the window owns focus, the selected row uses the active highlight. When
 focus moves to another window, the selected row remains visible in a muted
 state. If the backing item disappears from refreshed data, selection falls
-back to the nearest available row.
+back to the nearest available row. This must be implemented as an explicit
+TUI-owned selection marker rather than relying only on framework focus
+highlighting, so row `0` remains visibly selected after refreshes and tab
+changes.
 
 Polling refreshes should not visually rebuild unchanged lists. If a service
 snapshot is identical to the current one, the Services list must keep its
