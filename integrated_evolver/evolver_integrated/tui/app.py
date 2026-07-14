@@ -281,9 +281,7 @@ class EvolverTUI(App):
         ]
         for panel_selector in selectors:
             panel = self.query_one(panel_selector)
-            panel.display = panel_selector == selector
-            if panel_selector == selector:
-                panel.styles.height = "1fr"
+            panel.display = True
         self.query_one(selector).focus()
 
 

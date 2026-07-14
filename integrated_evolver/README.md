@@ -15,39 +15,72 @@ hardware server package responsible for every future system concern.
 
 ## What Runs
 
-Start the local control-plane API:
+### Holistic Dev
+
+Use the supervisor as the normal integrated development entrypoint:
+
+```bash
+nix run .#run-supervisor
+```
+
+The supervisor loads `evolver_integrated/service_catalog.yaml`, starts
+autostart services such as the control plane, and owns service lifecycle actions
+for the TUI. This is the path to use when you want the local runtime to behave
+like the future system service topology while still running from the current
+source tree.
+
+In another terminal, launch the TUI:
+
+```bash
+nix run .#run-tui
+```
+
+By default:
+
+- the supervisor API listens on `127.0.0.1:18083`
+- the control API listens on `127.0.0.1:18082`
+- services use `EVOLVER_DATA_DIR`, then XDG/HOME fallbacks
+- hardware-facing communication still targets the existing eVOLVER server at
+  `http://127.0.0.1:8081`
+
+### Piecewise Dev
+
+Run individual services directly when debugging one component or when you do
+not want the supervisor to own subprocess lifecycle.
+
+Start only the local control-plane API:
 
 ```bash
 nix run .#run-control-plane
 ```
 
-Start the raw broadcast ingester:
+Start only the raw broadcast ingester:
 
 ```bash
 nix run .#run-broadcast-ingest
 ```
 
-Start the local service supervisor:
+Start only the TUI:
 
 ```bash
-nix run .#run-supervisor
+nix run .#run-tui
+```
+
+When running the control plane by hand but still using a separately running
+supervisor, point it at the supervisor API:
+
+```bash
+nix run .#run-control-plane -- --supervisor-url http://127.0.0.1:18083
 ```
 
 From the workspace root, the same apps are delegated through the main flake:
 
 ```bash
+nix run .#run-supervisor
 nix run .#run-control-plane
 nix run .#run-broadcast-ingest
-nix run .#run-supervisor
+nix run .#run-tui
 ```
-
-By default:
-
-- the control API listens on `127.0.0.1:18082`
-- the supervisor API listens on `127.0.0.1:18083`
-- both services use `EVOLVER_DATA_DIR`, then XDG/HOME fallbacks
-- both services talk to the existing eVOLVER server at
-  `http://127.0.0.1:8081`
 
 ## Development
 

@@ -233,7 +233,7 @@ def test_evolver_tui_mounts_without_control_plane(monkeypatch):
     asyncio.run(run_app())
 
 
-def test_evolver_tui_number_keys_swap_left_panels(monkeypatch):
+def test_evolver_tui_number_keys_focus_left_panels_without_hiding(monkeypatch):
     from evolver_integrated.tui.app import EvolverTUI
 
     async def noop_start(self):
@@ -275,10 +275,10 @@ def test_evolver_tui_number_keys_swap_left_panels(monkeypatch):
         async with app.run_test() as pilot:
             await pilot.press("3")
             assert app.query_one("#inv-panel").display is True
-            assert app.query_one("#live-panel").display is False
+            assert app.query_one("#live-panel").display is True
             await pilot.press("5")
             assert app.query_one("#comp-panel").display is True
-            assert app.query_one("#inv-panel").display is False
+            assert app.query_one("#inv-panel").display is True
 
     asyncio.run(run_app())
 
