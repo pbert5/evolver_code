@@ -21,6 +21,7 @@
             ps: with ps; [
               aiohttp
               python-socketio
+              textual
             ]
           );
           mkRuntime = module: name:
@@ -35,6 +36,7 @@
           controlPlane = mkRuntime "evolver_integrated.control_daemon" "run-control-plane";
           broadcastIngest =
             mkRuntime "evolver_integrated.broadcast_ingest_daemon" "run-broadcast-ingest";
+          tui = mkRuntime "evolver_integrated.tui.app" "run-tui";
         in
         {
           "run-control-plane" = {
@@ -46,6 +48,16 @@
             type = "app";
             program = "${broadcastIngest}/bin/run-broadcast-ingest";
             meta.description = "Persist eVOLVER broadcasts as raw data.";
+          };
+          "run-tui" = {
+            type = "app";
+            program = "${tui}/bin/run-tui";
+            meta.description = "Launch the eVOLVER terminal UI.";
+          };
+          tui = {
+            type = "app";
+            program = "${tui}/bin/run-tui";
+            meta.description = "Launch the eVOLVER terminal UI.";
           };
           default = {
             type = "app";
@@ -65,6 +77,7 @@
               flake8
               pytest
               python-socketio
+              textual
             ]
           );
         in
@@ -93,6 +106,7 @@
               flake8
               pytest
               python-socketio
+              textual
             ]
           );
         in

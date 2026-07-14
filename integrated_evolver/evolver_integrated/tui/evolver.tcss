@@ -1,0 +1,74 @@
+/* eVOLVER TUI layout */
+
+Screen {
+    background: $surface;
+}
+
+#main-layout {
+    height: 1fr;
+}
+
+#left-col {
+    width: 32;
+    height: 100%;
+}
+
+#right-col {
+    width: 1fr;
+    height: 100%;
+}
+
+/* Left panels */
+
+StatusPanel {
+    height: 5;
+    border: round $primary;
+    padding: 0 1;
+}
+
+ExperimentsPanel {
+    height: 1fr;
+    border: round $primary;
+}
+
+ProtocolsPanel {
+    height: 1fr;
+    border: round $primary;
+}
+
+BioreactorsPanel {
+    height: 8;
+    border: round $primary;
+}
+
+ProcessesPanel {
+    height: 7;
+    border: round $primary;
+}
+
+/* Focus highlight: active panel gets accent border */
+StatusPanel:focus-within,
+ExperimentsPanel:focus-within,
+ProtocolsPanel:focus-within,
+BioreactorsPanel:focus-within,
+ProcessesPanel:focus-within {
+    border: round $accent;
+}
+
+/* Right panels */
+
+MainDisplay {
+    height: 1fr;
+    border: round $accent;
+    padding: 1 2;
+}
+
+#cmd-log {
+    height: 10;
+    border: round $primary-darken-3;
+}
+
+/* Dim list items that are placeholders */
+ListItem.-disabled Label {
+    color: $text-muted;
+}
