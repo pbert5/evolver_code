@@ -14,6 +14,8 @@ from .data_service import LocalDataService
 from .maintenance_jobs import MaintenanceJobManager
 from .runner_manager import DpuRunnerManager
 from .runtime_paths import default_data_dir
+from .service_manager import ServiceManager
+from .service_manager import default_service_catalog_path
 
 
 DEFAULT_CONTROL_HOST = "127.0.0.1"
@@ -54,6 +56,8 @@ def create_app(
     hardware_client=None,
     runner_manager=None,
     job_manager=None,
+    service_manager=None,
+    services_config=None,
 ):
     data_dir = data_dir or default_data_dir()
     data_service = LocalDataService(data_dir)
@@ -61,6 +65,9 @@ def create_app(
     runner_manager = runner_manager or DpuRunnerManager()
     job_manager = job_manager or MaintenanceJobManager(
         data_service=data_service,
+    )
+    service_manager = service_manager or ServiceManager.from_yaml(
+        services_config
     )
     control_plane = ControlPlane(
         hardware_client,
@@ -70,6 +77,7 @@ def create_app(
         control_plane,
         runner_manager=runner_manager,
         job_manager=job_manager,
+        service_manager=service_manager,
     )
 
 
@@ -96,6 +104,13 @@ def parse_args(argv=None):
         "--hardware-url",
         default=os.environ.get("EVOLVER_HARDWARE_URL", DEFAULT_HARDWARE_URL),
     )
+    parser.add_argument(
+        "--services-config",
+        default=os.environ.get(
+            "EVOLVER_SERVICES_CONFIG",
+            default_service_catalog_path(),
+        ),
+    )
     return parser.parse_args(argv)
 
 
@@ -104,6 +119,7 @@ def main(argv=None):
     app = create_app(
         data_dir=args.data_dir,
         hardware_url=args.hardware_url,
+        services_config=args.services_config,
     )
     web.run_app(app, host=args.host, port=args.port)
 

@@ -62,6 +62,13 @@ class ControlAPIClient:
         data = await self._get("/jobs")
         return data.get("jobs", [])
 
+    async def list_services(self) -> list:
+        data = await self._get("/services")
+        return data.get("services", [])
+
+    async def service_action(self, service_id: str, action: str) -> dict:
+        return await self._post(f"/services/{service_id}/{action}", {})
+
     async def _get(self, path: str) -> dict:
         assert self._session is not None, "client not started"
         try:

@@ -14,10 +14,21 @@ from textual.widgets import TabbedContent, TabPane
 
 _STATE_ICONS = {
     "created": "○",
-    "running": "●",
+    "running": "◉",
     "paused": "⏸",
-    "stopped": "✗",
+    "stopped": "□",
     "failed": "✗",
+    "unknown": "?",
+}
+
+_SERVICE_STATE_DISPLAY = {
+    "running": ("green", "○"),
+    "paused": ("yellow", "⏸"),
+    "stopped": ("dim", "□"),
+    "cancelled": ("red", "■"),
+    "canceled": ("red", "■"),
+    "failed": ("red", "✗"),
+    "unknown": ("white", "?"),
 }
 
 _STATUS_DISPLAY = {
@@ -84,13 +95,13 @@ class StatusPanel(Widget):
         self.query_one("#status-hint", Static).update(hint)
 
 
-# ── [2] Live (tabs: Experiments | Evolver Units | Processes) ──────────────────
+# ── [2] Live (tabs: Experiments | Evolver Units | Services) ───────────────────
 
 
 class LivePanel(Widget):
     BORDER_TITLE = "[2] Live"
 
-    _TABS = ["experiments", "evolvers", "processes"]
+    _TABS = ["experiments", "evolvers", "services"]
 
     BINDINGS = [
         Binding("[", "prev_tab", "Prev tab", show=False),
@@ -100,7 +111,9 @@ class LivePanel(Widget):
         Binding("p", "pause_or_resume", "Pause/Resume"),
         Binding("c", "cancel_exp", "Cancel"),
         Binding("n", "new_exp", "New"),
-        Binding("r", "run_exp", "Run"),
+        Binding("r", "run_or_restart", "Run/Restart"),
+        Binding("s", "start_service", "Start", show=False),
+        Binding("x", "stop_service", "Stop", show=False),
     ]
 
     # ── messages ──────────────────────────────────────────────────────────────
@@ -133,6 +146,12 @@ class LivePanel(Widget):
             self.experiment_id = experiment_id
             super().__init__()
 
+    class ServiceActionRequested(Message):
+        def __init__(self, service_id: str, action: str) -> None:
+            self.service_id = service_id
+            self.action = action
+            super().__init__()
+
     class NewRequested(Message):
         pass
 
@@ -148,6 +167,7 @@ class LivePanel(Widget):
         super().__init__(**kwargs)
         self._experiments: list[dict] = []
         self._devices: list[dict] = []
+        self._services: list[dict] = []
 
     def compose(self) -> ComposeResult:
         with TabbedContent(id="live-tabs"):
@@ -155,15 +175,15 @@ class LivePanel(Widget):
                 yield ListView(id="exp-list")
             with TabPane("Evolver Units", id="evolvers"):
                 yield ListView(id="evolver-list")
-            with TabPane("Processes", id="processes"):
-                yield ListView(id="proc-list")
+            with TabPane("Services", id="services"):
+                yield ListView(id="service-list")
 
     def on_mount(self) -> None:
         self.query_one("#evolver-list", ListView).append(
             ListItem(Label("[dim]No eVOLVER units connected[/dim]"))
         )
-        self.query_one("#proc-list", ListView).append(
-            ListItem(Label("[dim]No active processes[/dim]"))
+        self.query_one("#service-list", ListView).append(
+            ListItem(Label("[dim]No configured services[/dim]"))
         )
 
     # ── tab navigation ────────────────────────────────────────────────────────
@@ -224,10 +244,10 @@ class LivePanel(Widget):
             lv.append(ListItem(Label(f" {icon} {name}  [{state}]")))
 
     def update_jobs(self, jobs: list[dict]) -> None:
-        lv = self.query_one("#proc-list", ListView)
+        lv = self.query_one("#service-list", ListView)
         lv.clear()
         if not jobs:
-            lv.append(ListItem(Label("[dim]No active processes[/dim]")))
+            lv.append(ListItem(Label("[dim]No one-shot runs[/dim]")))
             return
         order = {"running": 0, "queued": 1, "pending": 2}
         for job in sorted(jobs, key=lambda j: order.get(j.get("state", ""), 9)):
@@ -235,6 +255,31 @@ class LivePanel(Widget):
             name = job.get("name", job.get("job_type", "?"))
             icon = "●" if state in ("running", "queued") else "○"
             lv.append(ListItem(Label(f" {icon} {name}  [{state}]")))
+
+    def update_services(self, services: list[dict]) -> None:
+        self._services = services
+        lv = self.query_one("#service-list", ListView)
+        old_idx = lv.index if lv.index is not None else 0
+        lv.clear()
+        if not services:
+            lv.append(ListItem(Label("[dim]No configured services[/dim]")))
+            return
+        for service in services:
+            state = service.get("state", "unknown")
+            color, icon = _SERVICE_STATE_DISPLAY.get(
+                state, _SERVICE_STATE_DISPLAY["unknown"]
+            )
+            name = service.get("name", service.get("id", "?"))
+            category = service.get("category", "?")
+            lv.append(
+                ListItem(
+                    Label(
+                        f" [{color}]{icon}[/{color}] {name}"
+                        f"  [{category}/{state}]"
+                    )
+                )
+            )
+        lv.index = min(old_idx, len(services) - 1)
 
     # ── selection events ──────────────────────────────────────────────────────
 
@@ -255,6 +300,15 @@ class LivePanel(Widget):
         return None
 
     def action_pause_or_resume(self) -> None:
+        if self._tc().active == "services":
+            service = self._focused_service()
+            if not service:
+                return
+            action = "resume" if service.get("state") == "paused" else "pause"
+            self.post_message(
+                self.ServiceActionRequested(service["id"], action)
+            )
+            return
         exp = self._focused_exp()
         if not exp:
             return
@@ -270,13 +324,40 @@ class LivePanel(Widget):
                 self.StopRequested(exp["id"], exp.get("name", ""))
             )
 
-    def action_run_exp(self) -> None:
+    def _focused_service(self) -> Optional[dict]:
+        idx = self.query_one("#service-list", ListView).index
+        if idx is not None and 0 <= idx < len(self._services):
+            return self._services[idx]
+        return None
+
+    def action_run_or_restart(self) -> None:
+        if self._tc().active == "services":
+            service = self._focused_service()
+            if service:
+                self.post_message(
+                    self.ServiceActionRequested(service["id"], "restart")
+                )
+            return
         exp = self._focused_exp()
         if exp:
             self.post_message(self.RunRequested(exp["id"]))
 
     def action_new_exp(self) -> None:
         self.post_message(self.NewRequested())
+
+    def action_start_service(self) -> None:
+        service = self._focused_service()
+        if service:
+            self.post_message(
+                self.ServiceActionRequested(service["id"], "start")
+            )
+
+    def action_stop_service(self) -> None:
+        service = self._focused_service()
+        if service:
+            self.post_message(
+                self.ServiceActionRequested(service["id"], "stop")
+            )
 
 
 # ── [3] Inventory (tabs: Protocols | Materials | Devices) ─────────────────────

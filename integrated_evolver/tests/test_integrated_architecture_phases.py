@@ -13,6 +13,7 @@ from evolver_integrated.messages import MessageValidationError
 from evolver_integrated.runner_manager import DpuRunnerManager
 from evolver_integrated.runner_manager import RUNNER_EXITED
 from evolver_integrated.runner_manager import RUNNER_RUNNING
+from evolver_integrated.service_manager import ServiceManager
 
 
 class RecordingHardwareClient(object):
@@ -157,6 +158,7 @@ def test_control_plane_api_exposes_local_service_routes(tmp_path):
     app = create_control_plane_app(
         control_plane,
         job_manager=MaintenanceJobManager(),
+        service_manager=ServiceManager([{"id": "svc"}]),
     )
 
     routes = set()
@@ -168,3 +170,5 @@ def test_control_plane_api_exposes_local_service_routes(tmp_path):
     assert ("POST", "/experiments/{experiment_id}/start") in routes
     assert ("POST", "/device-commands") in routes
     assert ("GET", "/jobs") in routes
+    assert ("GET", "/services") in routes
+    assert ("POST", "/services/{service_id}/{action}") in routes

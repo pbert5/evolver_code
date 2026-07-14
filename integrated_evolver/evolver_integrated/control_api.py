@@ -8,27 +8,32 @@ from .control_plane import ControlPlaneError
 from .maintenance_jobs import MaintenanceJobError
 from .messages import MessageValidationError
 from .runner_manager import RunnerManagerError
+from .service_manager import ServiceManagerError
 
 
 try:
     CONTROL_PLANE_KEY = web.AppKey("control_plane", object)
     RUNNER_MANAGER_KEY = web.AppKey("runner_manager", object)
     JOB_MANAGER_KEY = web.AppKey("job_manager", object)
+    SERVICE_MANAGER_KEY = web.AppKey("service_manager", object)
 except AttributeError:
     CONTROL_PLANE_KEY = "control_plane"
     RUNNER_MANAGER_KEY = "runner_manager"
     JOB_MANAGER_KEY = "job_manager"
+    SERVICE_MANAGER_KEY = "service_manager"
 
 
 def create_control_plane_app(
     control_plane,
     runner_manager=None,
     job_manager=None,
+    service_manager=None,
 ):
     app = web.Application()
     app[CONTROL_PLANE_KEY] = control_plane
     app[RUNNER_MANAGER_KEY] = runner_manager
     app[JOB_MANAGER_KEY] = job_manager
+    app[SERVICE_MANAGER_KEY] = service_manager
 
     app.router.add_get("/health", _health)
     app.router.add_get("/experiments", _list_experiments)
@@ -48,6 +53,8 @@ def create_control_plane_app(
     app.router.add_post("/experiments/{experiment_id}/stop", _stop_experiment)
     app.router.add_post("/device-commands", _device_command)
     app.router.add_get("/jobs", _list_jobs)
+    app.router.add_get("/services", _list_services)
+    app.router.add_post("/services/{service_id}/{action}", _service_action)
     return app
 
 
@@ -177,6 +184,27 @@ async def _list_jobs(request):
     return _json({"jobs": job_manager.list_jobs()})
 
 
+async def _list_services(request):
+    service_manager = request.app[SERVICE_MANAGER_KEY]
+    if service_manager is None:
+        return _json({"services": []})
+    return _json({"services": service_manager.list_services()})
+
+
+async def _service_action(request):
+    service_manager = request.app[SERVICE_MANAGER_KEY]
+    if service_manager is None:
+        return _json({"error": "service manager unavailable"}, status=503)
+    try:
+        service = service_manager.apply_action(
+            request.match_info["service_id"],
+            request.match_info["action"],
+        )
+        return _json({"service": service})
+    except _API_ERRORS as exc:
+        return _error(exc)
+
+
 async def _read_json(request, allow_empty=False):
     if allow_empty and not request.can_read_body:
         return {}
@@ -204,5 +232,6 @@ _API_ERRORS = (
     MaintenanceJobError,
     MessageValidationError,
     RunnerManagerError,
+    ServiceManagerError,
     ValueError,
 )

@@ -61,6 +61,7 @@ class EvolverTUI(App):
         self._log("TUI started — polling control plane")
         self.set_interval(2.0, self._poll)
         await self._poll()
+        self._show_left_panel("#live-panel")
 
     async def on_unmount(self) -> None:
         await self._client.stop()
@@ -70,7 +71,7 @@ class EvolverTUI(App):
     async def _poll(self) -> None:
         await self._refresh_status()
         await self._refresh_experiments()
-        await self._refresh_jobs()
+        await self._refresh_services()
 
     async def _refresh_status(self) -> None:
         try:
@@ -95,12 +96,12 @@ class EvolverTUI(App):
                     self.query_one(MainDisplay).show_experiment(exp)
                     break
 
-    async def _refresh_jobs(self) -> None:
+    async def _refresh_services(self) -> None:
         try:
-            jobs = await self._client.list_jobs()
+            services = await self._client.list_services()
         except APIError:
-            jobs = []
-        self.query_one(LivePanel).update_jobs(jobs)
+            services = []
+        self.query_one(LivePanel).update_services(services)
 
     # ── live panel message handlers ───────────────────────────────────────────
 
@@ -180,6 +181,20 @@ class EvolverTUI(App):
         else:
             self.run_worker(do_start(), exclusive=True)
 
+    async def on_live_panel_service_action_requested(
+        self, message: LivePanel.ServiceActionRequested
+    ) -> None:
+        try:
+            await self._client.service_action(
+                message.service_id, message.action
+            )
+            self._log(
+                f"{message.action.upper()} service {message.service_id}"
+            )
+        except APIError as exc:
+            self._log(f"[red]ERROR service: {exc}[/red]")
+        await self._refresh_services()
+
     def on_live_panel_new_requested(
         self, _message: LivePanel.NewRequested
     ) -> None:
@@ -236,25 +251,40 @@ class EvolverTUI(App):
     # ── focus actions (number keys) ───────────────────────────────────────────
 
     def action_focus_status(self) -> None:
-        self.query_one("#status-panel").focus()
+        self._show_left_panel("#status-panel")
 
     def action_focus_live(self) -> None:
-        self.query_one("#live-panel").focus()
+        self._show_left_panel("#live-panel")
 
     def action_focus_inventory(self) -> None:
-        self.query_one("#inv-panel").focus()
+        self._show_left_panel("#inv-panel")
 
     def action_focus_steps(self) -> None:
-        self.query_one("#steps-panel").focus()
+        self._show_left_panel("#steps-panel")
 
     def action_focus_components(self) -> None:
-        self.query_one("#comp-panel").focus()
+        self._show_left_panel("#comp-panel")
 
     # ── helpers ───────────────────────────────────────────────────────────────
 
     def _log(self, msg: str) -> None:
         ts = datetime.now().strftime("%H:%M:%S")
         self.query_one("#cmd-log", RichLog).write(f"[dim]{ts}[/dim]  {msg}")
+
+    def _show_left_panel(self, selector: str) -> None:
+        selectors = [
+            "#status-panel",
+            "#live-panel",
+            "#inv-panel",
+            "#steps-panel",
+            "#comp-panel",
+        ]
+        for panel_selector in selectors:
+            panel = self.query_one(panel_selector)
+            panel.display = panel_selector == selector
+            if panel_selector == selector:
+                panel.styles.height = "1fr"
+        self.query_one(selector).focus()
 
 
 def main() -> None:

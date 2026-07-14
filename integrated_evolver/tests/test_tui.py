@@ -25,6 +25,7 @@ def test_panels_module_imports():
         MainDisplay,
         StepsPanel,
         StatusPanel,
+        _SERVICE_STATE_DISPLAY,
         _STATE_ICONS,
         _STATUS_DISPLAY,
     )
@@ -35,6 +36,7 @@ def test_panels_module_imports():
     assert ComponentsPanel is not None
     assert MainDisplay is not None
     assert isinstance(_STATE_ICONS, dict)
+    assert isinstance(_SERVICE_STATE_DISPLAY, dict)
     assert isinstance(_STATUS_DISPLAY, dict)
 
 
@@ -150,6 +152,25 @@ def test_client_create_experiment_sends_valid_minimal_request(monkeypatch):
     ]
 
 
+def test_client_service_action_posts_to_service_route(monkeypatch):
+    from evolver_integrated.tui.client import ControlAPIClient
+
+    calls = []
+
+    async def fake_post(self, path, payload):
+        calls.append((path, payload))
+        return {"service": {"id": "control-plane"}}
+
+    monkeypatch.setattr(ControlAPIClient, "_post", fake_post)
+
+    result = asyncio.run(
+        ControlAPIClient().service_action("control-plane", "restart")
+    )
+
+    assert result == {"service": {"id": "control-plane"}}
+    assert calls == [("/services/control-plane/restart", {})]
+
+
 # ── EvolverTUI construction ───────────────────────────────────────────────────
 
 
@@ -198,7 +219,7 @@ def test_evolver_tui_mounts_without_control_plane(monkeypatch):
         empty_list,
     )
     monkeypatch.setattr(
-        "evolver_integrated.tui.client.ControlAPIClient.list_jobs",
+        "evolver_integrated.tui.client.ControlAPIClient.list_services",
         empty_list,
     )
 
@@ -210,6 +231,65 @@ def test_evolver_tui_mounts_without_control_plane(monkeypatch):
             assert app.query_one("#cmd-log") is not None
 
     asyncio.run(run_app())
+
+
+def test_evolver_tui_number_keys_swap_left_panels(monkeypatch):
+    from evolver_integrated.tui.app import EvolverTUI
+
+    async def noop_start(self):
+        return None
+
+    async def noop_stop(self):
+        return None
+
+    async def empty_dict(self):
+        return {"status": "ok"}
+
+    async def empty_list(self):
+        return []
+
+    monkeypatch.setattr(
+        "evolver_integrated.tui.client.ControlAPIClient.start",
+        noop_start,
+    )
+    monkeypatch.setattr(
+        "evolver_integrated.tui.client.ControlAPIClient.stop",
+        noop_stop,
+    )
+    monkeypatch.setattr(
+        "evolver_integrated.tui.client.ControlAPIClient.health",
+        empty_dict,
+    )
+    monkeypatch.setattr(
+        "evolver_integrated.tui.client.ControlAPIClient.list_experiments",
+        empty_list,
+    )
+    monkeypatch.setattr(
+        "evolver_integrated.tui.client.ControlAPIClient.list_services",
+        empty_list,
+    )
+
+    app = EvolverTUI()
+
+    async def run_app():
+        async with app.run_test() as pilot:
+            await pilot.press("3")
+            assert app.query_one("#inv-panel").display is True
+            assert app.query_one("#live-panel").display is False
+            await pilot.press("5")
+            assert app.query_one("#comp-panel").display is True
+            assert app.query_one("#inv-panel").display is False
+
+    asyncio.run(run_app())
+
+
+def test_live_panel_services_use_requested_status_symbols():
+    from evolver_integrated.tui.panels import _SERVICE_STATE_DISPLAY
+
+    assert _SERVICE_STATE_DISPLAY["running"] == ("green", "○")
+    assert _SERVICE_STATE_DISPLAY["paused"] == ("yellow", "⏸")
+    assert _SERVICE_STATE_DISPLAY["stopped"] == ("dim", "□")
+    assert _SERVICE_STATE_DISPLAY["failed"] == ("red", "✗")
 
 
 # ── FuzzySearchScreen filtering ───────────────────────────────────────────────

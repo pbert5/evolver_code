@@ -1,0 +1,27 @@
+services:
+  - id: control-plane
+    name: Control Plane
+    category: core
+    command: nix run .#run-control-plane
+    description: Local control-plane API and lifecycle coordinator.
+    supervisor_state: running
+  - id: evolver-server
+    name: eVOLVER Server
+    category: managed
+    command: nix run ../evolver#default
+    description: Legacy hardware-facing Socket.IO and serial server.
+  - id: broadcast-ingest
+    name: Broadcast Ingest
+    category: managed
+    command: nix run .#run-broadcast-ingest
+    description: Persist raw eVOLVER broadcasts.
+  - id: data-service
+    name: Data Service
+    category: managed
+    command: integrated into control-plane
+    description: Local JSONL data persistence service.
+  - id: tui
+    name: TUI
+    category: unmanaged
+    command: nix run .#run-tui
+    description: Operator terminal UI sessions.

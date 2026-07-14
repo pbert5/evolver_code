@@ -20,6 +20,7 @@
           pythonEnv = pkgs.python3.withPackages (
             ps: with ps; [
               aiohttp
+              pyyaml
               python-socketio
               textual
             ]
@@ -76,6 +77,7 @@
               aiohttp
               flake8
               pytest
+              pyyaml
               python-socketio
               textual
             ]
@@ -105,6 +107,7 @@
               aiohttp
               flake8
               pytest
+              pyyaml
               python-socketio
               textual
             ]
