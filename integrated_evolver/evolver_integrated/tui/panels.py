@@ -41,6 +41,25 @@ MATERIAL_TYPES = [
     "sample",
 ]
 
+
+def _experiment_request(experiment: dict) -> dict:
+    request = experiment.get("request", {})
+    return request if isinstance(request, dict) else {}
+
+
+def _experiment_name(experiment: dict) -> str:
+    return experiment.get("name") or _experiment_request(experiment).get(
+        "name", "?"
+    )
+
+
+def _experiment_protocol(experiment: dict) -> str:
+    request = _experiment_request(experiment)
+    metadata = request.get("metadata", {})
+    if not isinstance(metadata, dict):
+        metadata = {}
+    return experiment.get("protocol") or metadata.get("protocol", "-")
+
 # ── [1] Status ────────────────────────────────────────────────────────────────
 
 
@@ -183,7 +202,7 @@ class LivePanel(Widget):
         lv.clear()
         for exp in experiments:
             icon = _STATE_ICONS.get(exp.get("state", ""), "?")
-            name = exp.get("name", "?")
+            name = _experiment_name(exp)
             state = exp.get("state", "?")
             lv.append(ListItem(Label(f" {icon} {name}  [{state}]")))
         if experiments:
@@ -503,7 +522,7 @@ class ComponentsPanel(Widget):
         self._step = None
         self._step_idx = -1
         self.query_one("#comp-header", Static).update(
-            f"[dim]Select a step in [4][/dim]"
+            "[dim]Select a step in [4][/dim]"
         )
         self.query_one("#comp-list", ListView).clear()
 
@@ -556,11 +575,11 @@ class MainDisplay(Widget):
         yield Static(self._WELCOME, id="main-content")
 
     def show_experiment(self, experiment: dict) -> None:
-        name = experiment.get("name", "?")
+        name = _experiment_name(experiment)
         state = experiment.get("state", "?")
         exp_id = experiment.get("id", "?")
         created_at = experiment.get("created_at", "?")
-        protocol = experiment.get("protocol", "—")
+        protocol = _experiment_protocol(experiment)
         icon = _STATE_ICONS.get(state, "?")
         if state == "running":
             color = "yellow"

@@ -9,7 +9,7 @@ from typing import Optional
 from textual.app import App, ComposeResult
 from textual.binding import Binding
 from textual.containers import Horizontal, Vertical
-from textual.widgets import Footer, Header, Log
+from textual.widgets import Footer, Header, RichLog
 
 from .client import APIError, ControlAPIClient
 from .panels import (
@@ -36,7 +36,7 @@ class EvolverTUI(App):
         Binding("5", "focus_components", "Components", show=False),
     ]
 
-    def __init__(self, api_url: str = "http://localhost:8080") -> None:
+    def __init__(self, api_url: str = "http://127.0.0.1:8082") -> None:
         super().__init__()
         self._client = ControlAPIClient(api_url)
         self._experiments: list[dict] = []
@@ -53,7 +53,7 @@ class EvolverTUI(App):
                 yield ComponentsPanel(id="comp-panel")
             with Vertical(id="right-col"):
                 yield MainDisplay(id="main-display")
-                yield Log(id="cmd-log", highlight=True, markup=True)
+                yield RichLog(id="cmd-log", highlight=True, markup=True)
         yield Footer()
 
     async def on_mount(self) -> None:
@@ -254,14 +254,14 @@ class EvolverTUI(App):
 
     def _log(self, msg: str) -> None:
         ts = datetime.now().strftime("%H:%M:%S")
-        self.query_one("#cmd-log", Log).write_line(f"[dim]{ts}[/dim]  {msg}")
+        self.query_one("#cmd-log", RichLog).write(f"[dim]{ts}[/dim]  {msg}")
 
 
 def main() -> None:
     parser = argparse.ArgumentParser(description="eVOLVER terminal UI")
     parser.add_argument(
         "--api-url",
-        default="http://localhost:8080",
+        default="http://127.0.0.1:8082",
         help="Control plane API base URL",
     )
     args = parser.parse_args()

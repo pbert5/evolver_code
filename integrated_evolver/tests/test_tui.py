@@ -1,4 +1,6 @@
 """Tests for the eVOLVER TUI package."""
+import asyncio
+
 import pytest
 
 textual = pytest.importorskip(
@@ -106,7 +108,7 @@ def test_api_error_wraps_cause():
 def test_client_default_url():
     from evolver_integrated.tui.client import ControlAPIClient
     c = ControlAPIClient()
-    assert c.base_url == "http://localhost:8080"
+    assert c.base_url == "http://127.0.0.1:8082"
 
 
 def test_client_custom_url_strips_trailing_slash():
@@ -121,19 +123,93 @@ def test_client_not_started_has_no_session():
     assert c._session is None
 
 
+def test_client_create_experiment_sends_valid_minimal_request(monkeypatch):
+    from evolver_integrated.tui.client import ControlAPIClient
+
+    calls = []
+
+    async def fake_post(self, path, payload):
+        calls.append((path, payload))
+        return {"experiment": {"id": "exp-1"}}
+
+    monkeypatch.setattr(ControlAPIClient, "_post", fake_post)
+
+    result = asyncio.run(ControlAPIClient().create_experiment("trial"))
+
+    assert result == {"experiment": {"id": "exp-1"}}
+    assert calls == [
+        (
+            "/experiments",
+            {
+                "name": "trial",
+                "machine_id": "machine-1",
+                "vials": [0],
+                "metadata": {"protocol": "default"},
+            },
+        )
+    ]
+
+
 # ── EvolverTUI construction ───────────────────────────────────────────────────
 
 
 def test_evolver_tui_default_url():
     from evolver_integrated.tui.app import EvolverTUI
     app = EvolverTUI()
-    assert app._client.base_url == "http://localhost:8080"
+    assert app._client.base_url == "http://127.0.0.1:8082"
 
 
 def test_evolver_tui_custom_url():
     from evolver_integrated.tui.app import EvolverTUI
     app = EvolverTUI(api_url="http://192.168.1.10:8080")
     assert "192.168.1.10" in app._client.base_url
+
+
+def test_evolver_tui_mounts_without_control_plane(monkeypatch):
+    from evolver_integrated.tui.app import EvolverTUI
+
+    async def noop_start(self):
+        return None
+
+    async def noop_stop(self):
+        return None
+
+    async def disconnected(self):
+        from evolver_integrated.tui.client import APIError
+        raise APIError("offline")
+
+    async def empty_list(self):
+        return []
+
+    monkeypatch.setattr(
+        "evolver_integrated.tui.client.ControlAPIClient.start",
+        noop_start,
+    )
+    monkeypatch.setattr(
+        "evolver_integrated.tui.client.ControlAPIClient.stop",
+        noop_stop,
+    )
+    monkeypatch.setattr(
+        "evolver_integrated.tui.client.ControlAPIClient.health",
+        disconnected,
+    )
+    monkeypatch.setattr(
+        "evolver_integrated.tui.client.ControlAPIClient.list_experiments",
+        empty_list,
+    )
+    monkeypatch.setattr(
+        "evolver_integrated.tui.client.ControlAPIClient.list_jobs",
+        empty_list,
+    )
+
+    app = EvolverTUI()
+
+    async def run_app():
+        async with app.run_test() as pilot:
+            await pilot.pause()
+            assert app.query_one("#cmd-log") is not None
+
+    asyncio.run(run_app())
 
 
 # ── FuzzySearchScreen filtering ───────────────────────────────────────────────
@@ -151,3 +227,20 @@ def test_fuzzy_search_converts_items_to_str():
     from evolver_integrated.tui.screens import FuzzySearchScreen
     screen = FuzzySearchScreen([1, 2, 3])
     assert screen._all_items == ["1", "2", "3"]
+
+
+def test_experiment_display_reads_control_plane_record_shape():
+    from evolver_integrated.tui.panels import _experiment_name
+    from evolver_integrated.tui.panels import _experiment_protocol
+
+    experiment = {
+        "id": "exp-1",
+        "state": "created",
+        "request": {
+            "name": "trial",
+            "metadata": {"protocol": "batch-growth"},
+        },
+    }
+
+    assert _experiment_name(experiment) == "trial"
+    assert _experiment_protocol(experiment) == "batch-growth"

@@ -9,7 +9,7 @@ class APIError(Exception):
 
 
 class ControlAPIClient:
-    def __init__(self, base_url: str = "http://localhost:8080") -> None:
+    def __init__(self, base_url: str = "http://127.0.0.1:8082") -> None:
         self.base_url = base_url.rstrip("/")
         self._session: aiohttp.ClientSession | None = None
 
@@ -29,10 +29,21 @@ class ControlAPIClient:
         return data.get("experiments", [])
 
     async def create_experiment(
-        self, name: str, protocol: str = "default"
+        self,
+        name: str,
+        protocol: str = "default",
+        machine_id: str = "machine-1",
+        vials: list[int] | None = None,
     ) -> dict:
+        vials = [0] if vials is None else vials
         return await self._post(
-            "/experiments", {"name": name, "protocol": protocol}
+            "/experiments",
+            {
+                "name": name,
+                "machine_id": machine_id,
+                "vials": vials,
+                "metadata": {"protocol": protocol},
+            },
         )
 
     async def start_experiment(self, exp_id: str) -> dict:
