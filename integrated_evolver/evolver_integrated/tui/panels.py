@@ -310,6 +310,8 @@ class LivePanel(Widget):
             lv.append(ListItem(Label(f" {icon} {name}  [{state}]")))
 
     def update_services(self, services: list[dict]) -> None:
+        if services == self._services:
+            return
         lv = self.query_one("#service-list", ListView)
         old_idx = lv.index if lv.index is not None else 0
         old_key = (

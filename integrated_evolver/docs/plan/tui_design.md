@@ -340,6 +340,11 @@ focus moves to another window, the selected row remains visible in a muted
 state. If the backing item disappears from refreshed data, selection falls
 back to the nearest available row.
 
+Polling refreshes should not visually rebuild unchanged lists. If a service
+snapshot is identical to the current one, the Services list must keep its
+existing rows in place so the selected row does not flash during routine
+polling.
+
 ### Service Scope
 
 Future scope optimized for service recovery. It can enlarge [2] Services and
