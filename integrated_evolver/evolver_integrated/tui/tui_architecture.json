@@ -58,6 +58,8 @@
   ],
   "list_keybindings": [
     {"key": "up/down", "action": "move_focus", "description": "Move transient focus within current list"},
+    {"key": "left/[", "action": "previous_tab", "description": "Switch to previous tab in the focused window"},
+    {"key": "right/]", "action": "next_tab", "description": "Switch to next tab in the focused window"},
     {"key": "space", "action": "activate", "description": "Set active entry, toggle flag, or select where supported"},
     {"key": "enter", "action": "open", "description": "Open detail popup or form where supported"},
     {"key": "a", "action": "add", "description": "Add entry for the current tab"},

@@ -147,8 +147,8 @@ class LivePanel(Widget):
     _TABS = ["experiments", "evolvers", "services"]
 
     BINDINGS = [
-        Binding("[", "prev_tab", "Prev tab", show=False),
-        Binding("]", "next_tab", "Next tab", show=False),
+        Binding("[,left", "prev_tab", "Prev tab", show=False),
+        Binding("],right", "next_tab", "Next tab", show=False),
         Binding("/", "fuzzy_search", "Search", show=True),
         Binding("a", "new_exp", "Add experiment"),
         Binding("e", "edit_item", "Edit"),
@@ -493,8 +493,8 @@ class InventoryPanel(Widget):
     _TABS = ["protocols", "materials", "devices"]
 
     BINDINGS = [
-        Binding("[", "prev_tab", "Prev tab", show=False),
-        Binding("]", "next_tab", "Next tab", show=False),
+        Binding("[,left", "prev_tab", "Prev tab", show=False),
+        Binding("],right", "next_tab", "Next tab", show=False),
         Binding("/", "fuzzy_search", "Search", show=True),
         Binding("space", "select_item", "Set active", show=True),
         Binding("a", "add_item", "Add"),

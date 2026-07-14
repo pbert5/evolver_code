@@ -336,10 +336,10 @@ Visible:
 Number keys focus windows without hiding siblings. `0` focuses the right
 context pane; `1`-`5` focus the left windows.
 
-Tab switching inside a focused window (`[` / `]` or mouse click on a tab)
-must keep keyboard focus inside that same numbered window by moving focus to
-the newly active tab's list. Focus must not jump to Main Detail as a side
-effect of tab changes.
+Tab switching inside a focused window (`[` / `]`, `left` / `right`, or mouse
+click on a tab) must keep keyboard focus inside that same numbered window by
+moving focus to the newly active tab's list. Focus must not jump to Main
+Detail as a side effect of tab changes.
 
 Each list keeps a persistent selected row while its backing item still exists.
 When the window owns focus, the selected row uses the active highlight. When
