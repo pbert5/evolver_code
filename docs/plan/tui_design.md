@@ -332,6 +332,13 @@ It should avoid duplicating the left window and instead explain the selected
 object's context and next actions. `0` focuses this pane so the operator can
 scroll without leaving the keyboard workflow.
 
+The pane should be rendered from the current effective focus descriptor, not
+from a retained object-specific cache. The descriptor is:
+`page_id`, `window_id`, `tab_id`, optional `entry_key`, optional
+`entry_index`, and inherited `parent_contexts` such as protocol -> step.
+Polling may refresh backing data, but it should only refresh detail content
+when the effective focused scope explicitly expresses a refresh policy.
+
 Detail variants:
 - Scope detail: when no row is focused, explain what the focused window/tab is
   for and which actions are relevant.
@@ -544,6 +551,15 @@ context, a window can refine it, and a tab can set item-level focused context
 such as `inventory.protocols.focused` or `steps.focused`. Context pane content
 should be derived from the effective focused scope rather than from a separate
 hard-coded context table.
+
+Refresh metadata follows that same path. A window or tab may declare
+`refresh: true` for the default poll interval or `refresh: <seconds>` for a
+custom interval. Refresh-driven context redraws are valid only for the
+currently effective focus descriptor. For example, Live / Experiments can
+refresh experiment rows and the focused experiment detail only while
+`window_id=live`, `tab_id=experiments`, and an experiment entry is the current
+focused entry. A previously focused experiment must not repaint Context after
+focus has moved to another window, tab, or entry.
 
 Options also inherit downward. Defaults are false, and higher scopes can enable
 an option for all descendants unless a lower scope overrides it. Keybindings

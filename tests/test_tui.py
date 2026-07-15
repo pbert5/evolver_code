@@ -1159,7 +1159,7 @@ def test_live_panel_hides_restart_pause_for_unmanaged_service(monkeypatch):
     asyncio.run(run_app())
 
 
-def test_experiment_refresh_only_updates_live_experiments_context(monkeypatch):
+def test_experiment_refresh_does_not_redraw_context(monkeypatch):
     from evolver_integrated.tui.app import EvolverTUI
     from evolver_integrated.tui.panels import LivePanel, MainDisplay
 
@@ -1215,7 +1215,6 @@ def test_experiment_refresh_only_updates_live_experiments_context(monkeypatch):
     async def run_app():
         async with app.run_test() as pilot:
             await pilot.pause()
-            app._selected_experiment = dict(selected)
             live = app.query_one(LivePanel)
             rendered.clear()
 
@@ -1268,8 +1267,10 @@ def test_experiment_refresh_only_updates_live_experiments_context(monkeypatch):
             live.focus_default()
             assert app.focused is not None
             assert app.focused.id == "exp-list"
+            rendered.clear()
             await app._refresh_experiments()
-            assert rendered == ["exp-1"]
+            assert rendered == []
+            assert live._experiments == [selected]
 
     asyncio.run(run_app())
 

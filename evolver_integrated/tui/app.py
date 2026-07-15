@@ -72,7 +72,6 @@ class EvolverTUI(App):
         super().__init__()
         self._client = ControlAPIClient(api_url)
         self._experiments: list[dict] = []
-        self._selected_experiment: Optional[dict] = None
         self._demo_enabled = demo
         self._demo_data: dict = {}
         self._form_templates = self._load_form_templates()
@@ -127,16 +126,6 @@ class EvolverTUI(App):
             exps = list(self._demo_data.get("experiments", []))
         self._experiments = exps
         self.query_one(LivePanel).update_experiments(exps)
-        if self._selected_experiment is not None:
-            sel_id = self._selected_experiment.get("id")
-            for exp in exps:
-                if exp.get("id") == sel_id:
-                    self._selected_experiment = exp
-                    if self._live_experiments_has_focus():
-                        main = self._main_display()
-                        if main is not None:
-                            main.show_experiment(exp)
-                    break
 
     async def _refresh_services(self) -> None:
         try:
@@ -150,7 +139,6 @@ class EvolverTUI(App):
     def on_live_panel_experiment_selected(
         self, message: LivePanel.ExperimentSelected
     ) -> None:
-        self._selected_experiment = message.experiment
         main = self._main_display()
         if main is not None:
             main.show_experiment(message.experiment)
@@ -518,14 +506,6 @@ class EvolverTUI(App):
             self.query_one(MainDisplay).show_protocol(message.protocol)
         else:
             self.query_one(MainDisplay).show_scope("components")
-
-    def _live_experiments_has_focus(self) -> bool:
-        if self.focused is None or self.focused.id != "exp-list":
-            return False
-        try:
-            return self.query_one(LivePanel)._tc().active == "experiments"
-        except Exception:
-            return False
 
     def _main_display(self) -> Optional[MainDisplay]:
         try:

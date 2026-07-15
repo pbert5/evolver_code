@@ -5,6 +5,10 @@
       "default": false,
       "merge": "nearest scope wins; object values merge downward"
     },
+    "refresh": {
+      "default": false,
+      "merge": "nearest focused scope wins"
+    },
     "options": {
       "default": false,
       "merge": "nearest scope wins; object values merge downward"
@@ -99,6 +103,11 @@
                 "scope": "live.experiments",
                 "item_context": "experiment.focused"
               },
+              "refresh": {
+                "interval_seconds": 2,
+                "while_focused": true,
+                "updates": ["rows", "focused_detail"]
+              },
               "data": {
                 "source": "json_store.experiments",
                 "empty_state": "No experiments",
@@ -134,6 +143,11 @@
                 "scope": "live.evolver_units",
                 "item_context": "evolver.focused"
               },
+              "refresh": {
+                "interval_seconds": 2,
+                "while_focused": true,
+                "updates": ["rows", "focused_detail"]
+              },
               "data": {
                 "source": "json_store.evolver_units",
                 "empty_state": "No eVOLVER units connected",
@@ -162,6 +176,11 @@
               "context": {
                 "scope": "live.services",
                 "item_context": "service.focused"
+              },
+              "refresh": {
+                "interval_seconds": 2,
+                "while_focused": true,
+                "updates": ["rows", "focused_detail"]
               },
               "data": {
                 "source": "control_api.list_services",
@@ -416,7 +435,15 @@
   ],
   "focus_model": {
     "ui_only": true,
-    "description": "Highlighted rows are durable focused context. A dependent window reads the focused row from its parent window until that parent window highlights a different row or switches tabs.",
+    "description": "The effective focus descriptor is page/window/tab plus an optional entry key and index. Highlighted rows are durable focused context. A dependent window reads the focused row from its parent window until that parent window highlights a different row or switches tabs. Refresh-driven detail updates are only valid when expressed by the effective focused scope.",
+    "descriptor_fields": [
+      "page_id",
+      "window_id",
+      "tab_id",
+      "entry_key",
+      "entry_index",
+      "parent_contexts"
+    ],
     "selection_states": [
       "none",
       "focused",
