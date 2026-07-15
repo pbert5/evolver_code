@@ -1,85 +1,120 @@
-# eVOLVER Architecture
+# Integrated Architecture Phases
 
-## Overview
+These phases introduce explicit boundaries for the local integrated eVOLVER
+runtime without replacing the current server or DPU workflow all at once.
 
-Two components communicate over a local network via socket.io:
+## Services
 
-```
-┌─────────────────────────────────┐      socket.io       ┌──────────────────────┐
-│   Raspberry Pi (evolver server) │ ◄──────────────────► │  Workstation (DPU)   │
-│                                 │   port 8081           │                      │
-│  evolver.py (entry)             │   /dpu-evolver ns     │  calibrate.py        │
-│  evolver_server.py (socket.io)  │                       │  experiment scripts  │
-│  multi_server.py (aiohttp)      │                       │  graphing Django app │
-│  serial_discovery.py            │                       └──────────────────────┘
-│  provisioning.py                │
-│            │                    │
-│            │ serial /dev/ttyUSB0│
-│            │  or /dev/ttyAMA0   │
-│            ▼                    │
-│  Arduino (SAMD21 or Nano)       │
-│  (temp, OD, stir, pump)         │
-│  MINEVOLVER firmware            │
-└─────────────────────────────────┘
+The intended local process layout is:
+
+```text
+supervisor
+├── evolver-hardwared
+├── evolver-controld
+├── evolver-datad
+├── evolver-ui
+└── evolver-syncd
 ```
 
-## evolver server (Raspberry Pi)
+Phase 1 implemented the shared contracts and local service scaffolding:
 
-Entry point: `evolver/evolver/evolver.py`
+- `evolver_integrated.messages` defines versioned envelopes and validation helpers.
+- `evolver_integrated.data_service.LocalDataService` writes append-only JSONL streams.
+- `evolver_integrated.control_plane.ControlPlane` owns experiment lifecycle state and
+  validates runner actions before forwarding device commands.
 
-1. Reads `conf.yml` from the state directory (`EVOLVER_DATA_DIR`, default `/var/lib/evolver`).
-2. Starts an aiohttp web application via `MultiServer` on port 8081.
-3. Attaches a socket.io `AsyncServer` to the app (`evolver_server.py`).
-4. Runs a broadcast loop: every `broadcast_timing` seconds (default 20 s), all recurring commands are sent to the Arduino over serial and the response data is pushed to connected DPU clients as a `broadcast` event.
+## Boundaries
 
-### Serial protocol
+Only the hardware service should own serial communication. Experiment runners
+and user interfaces send requests to the control plane, and the control plane
+validates those requests before handing low-level commands to the hardware
+client.
 
-Commands are sent as `param,value1,value2,...,_!` and responses are read as `param,response_char,data1,data2,...,end`. After each read, an ACK is sent. `RECURRING` commands run every broadcast cycle; `IMMEDIATE` commands are inserted at the front of the queue on demand.
+Raw measurements are written independently of experiment processing:
 
-### Device discovery and provisioning
+```text
+eVOLVER server -> raw measurement envelope -> LocalDataService
+```
 
-Before the server can use a device it must be identified and provisioned. `serial_discovery.py` scans serial ports, sends `WHO_ARE_YOU_!` to each, and classifies the response. `provisioning.py` manages the provisioning state machine and the `PROVISION` / `CLEAR_ID` handshake. See `docs/hardware.md` for the full workflow.
+Experiment runners submit actions through an envelope:
 
-### State files (all mutable, never in Nix store)
+```text
+runner -> experiment.runner.action -> ControlPlane -> hardware client
+```
 
-| File | Content |
-|---|---|
-| `conf.yml` | Full `evolver_conf` dict; rewritten on every `command` socket event |
-| `calibrations.json` | List of named calibration objects with raw data and polynomial fits |
-| `evolver-config.json` | Device identity / name |
+## Compatibility
 
-## DPU (workstation)
+The phase-1 command schema accepts the existing DPU command shape:
 
-The DPU is a collection of Python scripts run by researchers, not a long-running service.
+```json
+{
+  "param": "temp",
+  "value": ["NaN", "3001"],
+  "immediate": true,
+  "recurring": false,
+  "fields_expected_outgoing": 17,
+  "fields_expected_incoming": 17
+}
+```
 
-- **`calibration/calibrate.py`** — connects to the evolver server, fetches raw calibration data, fits curves with scipy, and uploads the fit back to the server.
-- **`experiment/server_test.py`** — template experiment script that sends commands on a timer.
-- **`graphing/`** — Django 1.8.6 web app for visualising experiment time-series data with bokeh.
+This allows the current DPU code to be wrapped as a managed subprocess in a
+later phase rather than rewritten immediately.
 
-The DPU communicates with the evolver server using the legacy `socketIO-client 0.7.2` package (class-based API), which is a different library from the `python-socketio` used by the server.
+## Phase 2: Raw Ingestion
 
-## Service management (NixOS)
+`evolver_integrated.broadcast_ingest.BroadcastIngestor` converts the current Socket.IO
+broadcast shape into `machine.measurement.raw` envelopes and writes them through
+`LocalDataService`.
 
-On NixOS, the evolver server is managed by a systemd service (see `evolver/nix/evolver-module.nix`). This replaces the original supervisord + cron watchdog setup. Systemd restarts the process automatically on failure with a 10 s cooldown, and logs go to journald.
+This keeps durable raw-data capture independent from experiment scripts,
+graphing, and UI clients.
 
-## Integrated Runtime Prototype
+## Phase 3: Runner Isolation
 
-The proposed integrated local runtime lives in `integrated_evolver/`, not inside
-the legacy `evolver/` server package.
+`evolver_integrated.runner_manager.DpuRunnerManager` launches the current DPU
+`experiment/template/eVOLVER.py` script as a subprocess. This preserves the
+existing DPU behavior while giving the control plane a place to track runner
+state, interrupt a runner, and stop it without loading user code into the
+control-plane process.
 
-That folder owns the new architecture experiments:
+## Phase 4: Local Control API
 
-- versioned interprocess message contracts
-- append-only local data streams
-- control-plane lifecycle coordination
-- DPU subprocess runner management
-- maintenance-job authorization and state tracking
-- a local aiohttp control API
-- a broadcast ingester that subscribes to the existing Socket.IO server
+`evolver_integrated.control_api.create_control_plane_app` exposes a small aiohttp
+application for local clients:
 
-The current `evolver/` server remains the hardware-facing service. The current
-`dpu/` repo remains the experiment scripting environment. The integrated
-runtime coordinates those components while the architecture is being developed.
+- `GET /health`
+- `GET /experiments`
+- `POST /experiments`
+- `POST /experiments/{experiment_id}/start`
+- `POST /experiments/{experiment_id}/pause`
+- `POST /experiments/{experiment_id}/resume`
+- `POST /experiments/{experiment_id}/stop`
+- `POST /device-commands`
+- `GET /jobs`
 
-See `integrated_evolver/README.md` and
-`integrated_evolver/docs/architecture.md` for the detailed phased design.
+The API is intentionally thin. It delegates policy and validation to
+`ControlPlane` instead of duplicating lifecycle rules in handlers.
+
+`nix run .#run-control-plane` starts this API as a local service.
+
+## Phase 5: Maintenance Jobs
+
+`evolver_integrated.maintenance_jobs.MaintenanceJobManager` tracks controlled one-shot
+operations such as calibration, firmware flashing, provisioning, diagnostics,
+export, and sync. Jobs can require authorization before they move to `queued`,
+and every state transition can be recorded through `LocalDataService`.
+
+`nix run .#run-broadcast-ingest` subscribes to the existing eVOLVER Socket.IO
+server and persists broadcasts through the phase-2 ingestor.
+
+## Remaining Integration Work
+
+1. Decide whether raw ingestion should remain a subscribed local client or move
+   directly inside the hardware server process.
+2. Promote `run-control-plane` and `run-broadcast-ingest` from Nix apps into
+   systemd-supervised services for dedicated console installs.
+3. Let full experiment creation workflows supply finalized runner
+   configuration to `DpuRunnerManager`.
+4. Move graphing reads from experiment directories to `LocalDataService`
+   streams or standardized exports.
+5. Add systemd supervision for the new processes.

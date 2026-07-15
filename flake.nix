@@ -1,5 +1,5 @@
 {
-  description = "eVOLVER workspace entrypoints";
+  description = "Integrated local eVOLVER runtime prototype";
 
   inputs.nixpkgs.url = "github:NixOS/nixpkgs/nixos-26.05";
 
@@ -11,120 +11,124 @@
         "aarch64-linux"
       ];
       forAllSystems = nixpkgs.lib.genAttrs systems;
-      workspacePrelude = dir: ''
-        workspace="''${EVOLVER_WORKSPACE_DIR:-$PWD}"
-        target="$workspace/${dir}"
-        if [ ! -f "$target/flake.nix" ]; then
-          echo "ERROR: expected ${dir}/flake.nix under $workspace"
-          echo "Run from the evolver_code workspace root or set EVOLVER_WORKSPACE_DIR."
-          exit 1
-        fi
-        cd "$target"
-      '';
-      mkApp =
-        pkgs: name: dir: description:
-        let
-          app = pkgs.writeShellApplication {
-            name = "workspace-${name}";
-            runtimeInputs = [ pkgs.nix ];
-            text = ''
-              set -euo pipefail
-              ${workspacePrelude dir}
-              exec nix run "path:.#${name}" -- "$@"
-            '';
-          };
-        in
-        {
-          type = "app";
-          program = "${app}/bin/workspace-${name}";
-          meta.description = description;
-        };
-      mkCheckApp =
-        pkgs: name: dir: description:
-        let
-          app = pkgs.writeShellApplication {
-            name = "workspace-${name}";
-            runtimeInputs = [ pkgs.nix ];
-            text = ''
-              set -euo pipefail
-              ${workspacePrelude dir}
-              exec nix flake check path:. "$@"
-            '';
-          };
-        in
-        {
-          type = "app";
-          program = "${app}/bin/workspace-${name}";
-          meta.description = description;
-        };
     in
     {
       apps = forAllSystems (
         system:
         let
           pkgs = nixpkgs.legacyPackages.${system};
-          evolverApp = name: description: mkApp pkgs name "evolver" description;
-          integratedApp = name: description: mkApp pkgs name "integrated_evolver" description;
-          dpuApp = name: description: mkApp pkgs name "dpu" description;
-          arduinoApp = name: description: mkApp pkgs name "evolver-arduino" description;
-          checkAll = pkgs.writeShellApplication {
-            name = "workspace-check-all";
-            runtimeInputs = [ pkgs.nix ];
-            text = ''
-              set -euo pipefail
-              workspace="''${EVOLVER_WORKSPACE_DIR:-$PWD}"
-              for dir in evolver integrated_evolver dpu evolver-arduino; do
-                target="$workspace/$dir"
-                if [ ! -f "$target/flake.nix" ]; then
-                  echo "ERROR: expected $dir/flake.nix under $workspace"
-                  echo "Run from the evolver_code workspace root or set EVOLVER_WORKSPACE_DIR."
-                  exit 1
-                fi
-                echo "==> nix flake check $dir"
-                (cd "$target" && nix flake check)
-              done
-            '';
-          };
+          pythonEnv = pkgs.python3.withPackages (
+            ps: with ps; [
+              aiohttp
+              pyyaml
+              python-socketio
+              textual
+            ]
+          );
+          mkRuntime = module: name:
+            pkgs.writeShellApplication {
+              inherit name;
+              runtimeInputs = [ pythonEnv ];
+              text = ''
+                export PYTHONPATH="$PWD''${PYTHONPATH:+:$PYTHONPATH}"
+                exec python -m ${module} "$@"
+              '';
+            };
+          controlPlane = mkRuntime "evolver_integrated.control_daemon" "run-control-plane";
+          broadcastIngest =
+            mkRuntime "evolver_integrated.broadcast_ingest_daemon" "run-broadcast-ingest";
+          supervisor =
+            mkRuntime "evolver_integrated.supervisor_daemon" "run-supervisor";
+          tui = mkRuntime "evolver_integrated.tui.app" "run-tui";
         in
         {
-          default = evolverApp "run-server" "Run the eVOLVER socket.io server.";
-          "run-server" = evolverApp "run-server" "Run the eVOLVER socket.io server.";
-          "run-virtual-evolver" =
-            evolverApp "run-virtual-evolver" "Run the eVOLVER server in virtual output mode.";
-          "discover-devices" = evolverApp "discover-devices" "Discover connected eVOLVER serial devices.";
-          "provision-device" = evolverApp "provision-device" "Provision identity data onto an eVOLVER device.";
-          "export-calibration" = evolverApp "export-calibration" "Export device calibration data.";
-          "test-virtual-dpu" = evolverApp "test-virtual-dpu" "Run the virtual DPU integration smoke test.";
-
-          "run-control-plane" =
-            integratedApp "run-control-plane" "Run the integrated eVOLVER control-plane API.";
-          "run-supervisor" =
-            integratedApp "run-supervisor" "Run the integrated eVOLVER service supervisor.";
-          "run-broadcast-ingest" =
-            integratedApp "run-broadcast-ingest" "Persist eVOLVER broadcasts as raw data.";
-          "run-tui" = integratedApp "run-tui" "Launch the integrated eVOLVER TUI.";
-          "tui" = integratedApp "tui" "Launch the integrated eVOLVER TUI.";
-
-          "run-dpu" = dpuApp "run-dpu" "Run the DPU experiment controller.";
-
-          "setup-arduino" = arduinoApp "setup-arduino" "Set up Arduino tooling for SAMD21 firmware.";
-          "build-firmware" = arduinoApp "build-firmware" "Build SAMD21 eVOLVER firmware.";
-          "upload-firmware" = arduinoApp "upload-firmware" "Upload SAMD21 eVOLVER firmware.";
-          "setup-arduino-nano" = arduinoApp "setup-arduino-nano" "Set up Arduino Nano tooling.";
-          "build-firmware-nano" = arduinoApp "build-firmware-nano" "Build Arduino Nano eVOLVER firmware.";
-          "upload-firmware-nano" = arduinoApp "upload-firmware-nano" "Upload Arduino Nano eVOLVER firmware.";
-
-          "check-evolver" = mkCheckApp pkgs "check-evolver" "evolver" "Run the eVOLVER flake checks.";
-          "check-integrated-evolver" =
-            mkCheckApp pkgs "check-integrated-evolver" "integrated_evolver" "Run the integrated runtime flake checks.";
-          "check-dpu" = mkCheckApp pkgs "check-dpu" "dpu" "Run the DPU flake checks.";
-          "check-arduino" =
-            mkCheckApp pkgs "check-arduino" "evolver-arduino" "Run the Arduino firmware flake checks.";
-          "check-all" = {
+          "run-control-plane" = {
             type = "app";
-            program = "${checkAll}/bin/workspace-check-all";
-            meta.description = "Run all workspace subproject flake checks.";
+            program = "${controlPlane}/bin/run-control-plane";
+            meta.description = "Run the integrated eVOLVER control-plane API.";
           };
+          "run-broadcast-ingest" = {
+            type = "app";
+            program = "${broadcastIngest}/bin/run-broadcast-ingest";
+            meta.description = "Persist eVOLVER broadcasts as raw data.";
+          };
+          "run-supervisor" = {
+            type = "app";
+            program = "${supervisor}/bin/run-supervisor";
+            meta.description = "Run the integrated eVOLVER service supervisor.";
+          };
+          "run-tui" = {
+            type = "app";
+            program = "${tui}/bin/run-tui";
+            meta.description = "Launch the eVOLVER terminal UI.";
+          };
+          tui = {
+            type = "app";
+            program = "${tui}/bin/run-tui";
+            meta.description = "Launch the eVOLVER terminal UI.";
+          };
+          default = {
+            type = "app";
+            program = "${controlPlane}/bin/run-control-plane";
+            meta.description = "Run the integrated eVOLVER control-plane API.";
+          };
+        }
+      );
+
+      checks = forAllSystems (
+        system:
+        let
+          pkgs = nixpkgs.legacyPackages.${system};
+          testSrc = pkgs.lib.cleanSourceWith {
+            src = ./.;
+            filter = path: type:
+              let
+                name = baseNameOf path;
+              in
+              ! (
+                name == ".venv"
+                || name == ".pytest_cache"
+                || name == "__pycache__"
+              );
+          };
+          checkPython = pkgs.python3.withPackages (
+            ps: with ps; [
+              aiohttp
+              flake8
+              pytest
+              pyyaml
+              python-socketio
+              textual
+            ]
+          );
+        in
+        {
+          tests = pkgs.runCommand "integrated-evolver-tests" {
+            src = testSrc;
+            nativeBuildInputs = [ checkPython ];
+          } ''
+            cp -r "$src" source
+            cd source
+            export PYTHONPATH="$PWD"
+            flake8 evolver_integrated tests
+            python -m pytest --rootdir=. tests -q
+            python <<'PY'
+            from pathlib import Path
+            import yaml
+
+            schema_root = Path("data/integrated system")
+            schema_paths = [
+                schema_root / "integrated_evolver_schema.linkml.yml",
+                *sorted((schema_root / "schemas").glob("*.yaml")),
+            ]
+            assert len(schema_paths) > 1
+            for schema_path in schema_paths:
+                schema = yaml.safe_load(schema_path.read_text())
+                assert "linkml:types" in schema["imports"]
+                assert "classes" in schema or "enums" in schema
+            PY
+            touch "$out"
+          '';
         }
       );
 
@@ -132,29 +136,46 @@
         system:
         let
           pkgs = nixpkgs.legacyPackages.${system};
-          testPython = pkgs.python3.withPackages (
+          linkmlValidate = pkgs.writeShellApplication {
+            name = "linkml-validate";
+            runtimeInputs = [ pkgs.uv ];
+            text = ''
+              exec uvx --from linkml linkml-validate "$@"
+            '';
+          };
+          linkmlGenJsonSchema = pkgs.writeShellApplication {
+            name = "gen-json-schema";
+            runtimeInputs = [ pkgs.uv ];
+            text = ''
+              exec uvx --from linkml gen-json-schema "$@"
+            '';
+          };
+          devPython = pkgs.python3.withPackages (
             ps: with ps; [
               aiohttp
-              coverage
+              flake8
+              pip
               pytest
-              pytest-cov
-              pyserial
-              python-socketio
               pyyaml
-              requests
-              six
-              websocket-client
+              python-socketio
+              textual
             ]
           );
         in
         {
           default = pkgs.mkShell {
-            name = "evolver-code-workspace";
+            name = "integrated-evolver";
             packages = [
+              devPython
               pkgs.git
               pkgs.nix
-              testPython
+              pkgs.uv
+              linkmlValidate
+              linkmlGenJsonSchema
             ];
+            shellHook = ''
+              echo "LinkML support: use 'gen-json-schema data/integrated\\ system/integrated_evolver_schema.linkml.yml' or 'linkml-validate --schema ... <data.yml>'."
+            '';
           };
         }
       );

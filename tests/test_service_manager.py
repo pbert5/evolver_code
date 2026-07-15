@@ -45,7 +45,7 @@ services:
   - id: evolver-server
     name: eVOLVER Server
     category: managed
-    command: nix run ../evolver#default
+    command: nix run path:deprecated/evolver#default
 """
     )
 

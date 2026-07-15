@@ -1,12 +1,12 @@
 [submodule "evolver"]
-	path = evolver
+	path = deprecated/evolver
 	url = https://gitpub.wei.wisc.edu/botts1/evolver/evolver-server.git
 [submodule "dpu"]
-	path = dpu
+	path = deprecated/dpu
 	url = https://gitpub.wei.wisc.edu/botts1/evolver/dpu.git
 [submodule "evolver-arduino"]
-	path = evolver-arduino
+	path = deprecated/evolver-arduino
 	url = https://gitpub.wei.wisc.edu/botts1/evolver/evolver-arduino.git
 [submodule "evolver_plan"]
-	path = evolver_plan
+	path = deprecated/evolver_plan
 	url = https://gitpub.wei.wisc.edu/botts1/evolver/evolver-plan.git

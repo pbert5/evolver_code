@@ -8,7 +8,7 @@ services:
   - id: evolver-server
     name: eVOLVER Server
     category: managed
-    command: nix run ../evolver#default
+    command: nix run path:deprecated/evolver#default
     description: Legacy hardware-facing Socket.IO and serial server.
   - id: broadcast-ingest
     name: Broadcast Ingest

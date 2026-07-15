@@ -1,17 +1,16 @@
 # Integrated eVOLVER Runtime
 
-This folder contains the proposed integrated local runtime for eVOLVER.
+This repository contains the proposed integrated local runtime for eVOLVER.
 
-It intentionally lives beside the existing projects instead of inside any one
-of them:
+The legacy workspace projects have been moved under `deprecated/`:
 
-- `../evolver` remains the legacy hardware-facing Socket.IO and serial server.
-- `../dpu` remains the existing experiment-script and graphing workflow.
-- `../integrated_evolver` contains the new control plane, data service,
-  runner management, maintenance-job coordination, and local API experiments.
+- `deprecated/evolver` is the legacy hardware-facing Socket.IO and serial server.
+- `deprecated/dpu` is the existing experiment-script and graphing workflow.
+- `deprecated/evolver-arduino` is the firmware workspace.
+- `deprecated/evolver_plan` is the previous planning workspace.
 
-The goal is to let the new architecture evolve without making the current
-hardware server package responsible for every future system concern.
+The root project now contains the new control plane, data service, runner
+management, maintenance-job coordination, TUI, and local API experiments.
 
 ## What Runs
 
@@ -84,18 +83,9 @@ supervisor, point it at the supervisor API:
 nix run .#run-control-plane -- --supervisor-url http://127.0.0.1:18083
 ```
 
-From the workspace root, the same apps are delegated through the main flake:
-
-```bash
-nix run .#run-supervisor
-nix run .#run-control-plane
-nix run .#run-broadcast-ingest
-nix run .#run-tui
-```
-
 ## Development
 
-Run tests from this folder:
+Run tests from the repository root:
 
 ```bash
 nix develop
