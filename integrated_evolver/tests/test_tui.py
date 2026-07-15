@@ -400,6 +400,39 @@ def test_tui_architecture_spells_out_tab_data_rows():
             assert row["display"]
 
 
+def test_tui_actions_json_drives_live_action_catalog():
+    from evolver_integrated.tui.actions import (
+        actions_for_panel_tab,
+        key_help_lines,
+        service_command,
+        service_managed_restricted_actions,
+    )
+    from evolver_integrated.tui.panels import LivePanel
+
+    path = (
+        Path(__file__).parents[1]
+        / "evolver_integrated"
+        / "tui"
+        / "actions.json"
+    )
+    actions = json.loads(path.read_text())
+
+    assert actions["version"] == 1
+    assert "run_or_restart" in actions_for_panel_tab("live", "services")
+    assert "config_item" not in actions_for_panel_tab(
+        "live", "experiments"
+    )
+    assert service_command("restart", "fallback") == "restart"
+    assert service_managed_restricted_actions() == {
+        "pause_or_resume",
+        "run_or_restart",
+    }
+    assert any(line.startswith("enter ") for line in key_help_lines())
+    assert LivePanel._TAB_ACTIONS["services"] == actions_for_panel_tab(
+        "live", "services"
+    )
+
+
 def test_form_templates_create_material_and_protocol_records():
     from evolver_integrated.tui.screens import record_from_template
 

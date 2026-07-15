@@ -79,6 +79,18 @@
         system:
         let
           pkgs = nixpkgs.legacyPackages.${system};
+          testSrc = pkgs.lib.cleanSourceWith {
+            src = ./.;
+            filter = path: type:
+              let
+                name = baseNameOf path;
+              in
+              ! (
+                name == ".venv"
+                || name == ".pytest_cache"
+                || name == "__pycache__"
+              );
+          };
           checkPython = pkgs.python3.withPackages (
             ps: with ps; [
               aiohttp
@@ -92,7 +104,7 @@
         in
         {
           tests = pkgs.runCommand "integrated-evolver-tests" {
-            src = ./.;
+            src = testSrc;
             nativeBuildInputs = [ checkPython ];
           } ''
             cp -r "$src" source
@@ -100,6 +112,21 @@
             export PYTHONPATH="$PWD"
             flake8 evolver_integrated tests
             python -m pytest --rootdir=. tests -q
+            python <<'PY'
+            from pathlib import Path
+            import yaml
+
+            schema_root = Path("data/integrated system")
+            schema_paths = [
+                schema_root / "integrated_evolver_schema.linkml.yml",
+                *sorted((schema_root / "schemas").glob("*.yaml")),
+            ]
+            assert len(schema_paths) > 1
+            for schema_path in schema_paths:
+                schema = yaml.safe_load(schema_path.read_text())
+                assert "linkml:types" in schema["imports"]
+                assert "classes" in schema or "enums" in schema
+            PY
             touch "$out"
           '';
         }
@@ -109,10 +136,25 @@
         system:
         let
           pkgs = nixpkgs.legacyPackages.${system};
+          linkmlValidate = pkgs.writeShellApplication {
+            name = "linkml-validate";
+            runtimeInputs = [ pkgs.uv ];
+            text = ''
+              exec uvx --from linkml linkml-validate "$@"
+            '';
+          };
+          linkmlGenJsonSchema = pkgs.writeShellApplication {
+            name = "gen-json-schema";
+            runtimeInputs = [ pkgs.uv ];
+            text = ''
+              exec uvx --from linkml gen-json-schema "$@"
+            '';
+          };
           devPython = pkgs.python3.withPackages (
             ps: with ps; [
               aiohttp
               flake8
+              pip
               pytest
               pyyaml
               python-socketio
@@ -127,7 +169,13 @@
               devPython
               pkgs.git
               pkgs.nix
+              pkgs.uv
+              linkmlValidate
+              linkmlGenJsonSchema
             ];
+            shellHook = ''
+              echo "LinkML support: use 'gen-json-schema data/integrated\\ system/integrated_evolver_schema.linkml.yml' or 'linkml-validate --schema ... <data.yml>'."
+            '';
           };
         }
       );

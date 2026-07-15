@@ -1,0 +1,165 @@
+id: https://w3id.org/evolver/integrated-system/base
+name: integrated_evolver_base
+title: Integrated eVOLVER Base Types
+imports:
+  - linkml:types
+prefixes:
+  linkml: https://w3id.org/linkml/
+  evolver: https://w3id.org/evolver/
+  schema: https://schema.org/
+default_prefix: evolver
+default_range: string
+
+classes:
+  NamedEntity:
+    abstract: true
+    description: Common identifier/name/description shape.
+    attributes:
+      id:
+        identifier: true
+        required: true
+      name:
+        required: true
+      description:
+      aliases:
+        multivalued: true
+
+  Quantity:
+    description: Numeric value with an explicit unit string.
+    attributes:
+      value:
+        range: decimal
+        required: true
+      unit:
+        required: true
+      uncertainty:
+        range: decimal
+      basis:
+        description: Normalization basis such as per vial, per hour, or per run.
+
+  TimeWindow:
+    description: Time interval relative to a protocol or absolute runtime.
+    attributes:
+      start:
+        range: decimal
+      end:
+        range: decimal
+      unit:
+        required: true
+      reference:
+        description: Origin for relative time, such as experiment_start.
+
+  PersonOrAgent:
+    is_a: NamedEntity
+    description: Human, service, or automation agent responsible for an action.
+    attributes:
+      agent_type:
+        range: AgentTypeEnum
+      contact:
+
+  ParameterBounds:
+    description: Optional bounds for runtime parameter editing.
+    attributes:
+      minimum:
+        range: decimal
+      maximum:
+        range: decimal
+      step:
+        range: decimal
+      unit:
+
+  ParameterSetting:
+    description: Generic parameter assignment.
+    attributes:
+      parameter:
+        range: ParameterKindEnum
+        required: true
+      value:
+        range: Quantity
+        inlined: true
+      raw_value:
+      source:
+        range: ParameterSourceEnum
+      mutable_during_run:
+        range: boolean
+
+  FixedParameter:
+    is_a: ParameterSetting
+    description: Parameter fixed at protocol start.
+
+  RuntimeParameter:
+    is_a: ParameterSetting
+    description: User- or automation-adjustable parameter during a run.
+    attributes:
+      update_policy:
+      ui_exposed:
+        range: boolean
+      bounds:
+        range: ParameterBounds
+        inlined: true
+
+enums:
+  AgentTypeEnum:
+    permissible_values:
+      human: {}
+      service: {}
+      automation: {}
+      imported_system: {}
+
+  SeverityEnum:
+    permissible_values:
+      info: {}
+      warning: {}
+      error: {}
+      critical: {}
+
+  OperationalStateEnum:
+    permissible_values:
+      unknown: {}
+      available: {}
+      running: {}
+      paused: {}
+      stopped: {}
+      failed: {}
+      maintenance_required: {}
+      offline: {}
+
+  ParameterKindEnum:
+    permissible_values:
+      temperature: {}
+      optical_density: {}
+      od_upper_threshold: {}
+      od_lower_threshold: {}
+      stir_rate: {}
+      culture_volume: {}
+      flow_rate: {}
+      dilution_rate: {}
+      bolus_volume: {}
+      pump_duration: {}
+      pump_period: {}
+      elapsed_time: {}
+      media_volume: {}
+      waste_volume: {}
+      growth_rate: {}
+      doubling_time: {}
+      user_input: {}
+      other: {}
+
+  ParameterSourceEnum:
+    permissible_values:
+      fixed_protocol: {}
+      operator_input: {}
+      ui_runtime: {}
+      sensor: {}
+      algorithm: {}
+      calibration: {}
+      derived: {}
+
+  ComparatorEnum:
+    permissible_values:
+      less_than: {}
+      less_than_or_equal: {}
+      equal: {}
+      greater_than_or_equal: {}
+      greater_than: {}
+      between: {}

@@ -10,6 +10,12 @@ from textual.widget import Widget
 from textual.widgets import Label, ListItem, ListView, Static
 from textual.widgets import TabbedContent, TabPane
 
+from .actions import (
+    actions_for_panel_tab,
+    service_command,
+    service_managed_restricted_actions,
+)
+
 # ── shared constants ──────────────────────────────────────────────────────────
 
 _STATE_ICONS = {
@@ -152,33 +158,13 @@ class LivePanel(Widget, can_focus=True):
 
     _TABS = ["experiments", "evolvers", "services"]
     _TAB_ACTIONS = {
-        "experiments": {
-            "fuzzy_search",
-            "open_item",
-            "new_exp",
-            "edit_item",
-            "delete_item",
-            "pause_or_resume",
-            "cancel_exp",
-            "run_or_restart",
-        },
-        "evolvers": {
-            "fuzzy_search",
-            "open_item",
-            "config_item",
-            "edit_item",
-            "delete_item",
-        },
-        "services": {
-            "fuzzy_search",
-            "open_item",
-            "config_item",
-            "pause_or_resume",
-            "run_or_restart",
-            "start_service",
-            "stop_service",
-        },
+        "experiments": actions_for_panel_tab("live", "experiments"),
+        "evolvers": actions_for_panel_tab("live", "evolvers"),
+        "services": actions_for_panel_tab("live", "services"),
     }
+    _SERVICE_MANAGED_RESTRICTED_ACTIONS = (
+        service_managed_restricted_actions()
+    )
 
     BINDINGS = [
         Binding("[,left", "prev_tab", "Prev tab", show=False),
@@ -341,10 +327,10 @@ class LivePanel(Widget, can_focus=True):
             return True
         if action not in self._TAB_ACTIONS.get(active_tab, set()):
             return False
-        if active_tab == "services" and action in {
-            "pause_or_resume",
-            "run_or_restart",
-        }:
+        if (
+            active_tab == "services"
+            and action in self._SERVICE_MANAGED_RESTRICTED_ACTIONS
+        ):
             return self._focused_service_is_managed()
         return True
 
@@ -508,7 +494,9 @@ class LivePanel(Widget, can_focus=True):
             state = str(service.get("state", "")).lower() if service else ""
             if service and state not in {"running", "paused"}:
                 self.post_message(
-                    self.ServiceActionRequested(service["id"], "start")
+                    self.ServiceActionRequested(
+                        service["id"], service_command("start", "start")
+                    )
                 )
                 return
         self._post_current_context()
@@ -529,7 +517,10 @@ class LivePanel(Widget, can_focus=True):
             if not self._service_is_managed(service):
                 self._post_current_context()
                 return
-            action = "resume" if service.get("state") == "paused" else "pause"
+            command_name = (
+                "resume" if service.get("state") == "paused" else "pause"
+            )
+            action = service_command(command_name, command_name)
             self.post_message(
                 self.ServiceActionRequested(service["id"], action)
             )
@@ -573,7 +564,10 @@ class LivePanel(Widget, can_focus=True):
                     self._post_current_context()
                     return
                 self.post_message(
-                    self.ServiceActionRequested(service["id"], "restart")
+                    self.ServiceActionRequested(
+                        service["id"],
+                        service_command("restart", "restart"),
+                    )
                 )
             return
         exp = self._focused_exp()
@@ -593,14 +587,18 @@ class LivePanel(Widget, can_focus=True):
         service = self._focused_service()
         if service:
             self.post_message(
-                self.ServiceActionRequested(service["id"], "start")
+                self.ServiceActionRequested(
+                    service["id"], service_command("start", "start")
+                )
             )
 
     def action_stop_service(self) -> None:
         service = self._focused_service()
         if service:
             self.post_message(
-                self.ServiceActionRequested(service["id"], "stop")
+                self.ServiceActionRequested(
+                    service["id"], service_command("stop", "stop")
+                )
             )
 
 

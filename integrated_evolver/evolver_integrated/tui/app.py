@@ -11,8 +11,10 @@ from typing import Optional
 from textual.app import App, ComposeResult
 from textual.binding import Binding
 from textual.containers import Horizontal, Vertical
+from textual.css.query import NoMatches
 from textual.widgets import Footer, Header, RichLog
 
+from .actions import key_help_lines
 from .client import APIError, ControlAPIClient
 from .panels import (
     ComponentsPanel,
@@ -129,7 +131,9 @@ class EvolverTUI(App):
                 if exp.get("id") == sel_id:
                     self._selected_experiment = exp
                     if self._live_experiments_has_focus():
-                        self.query_one(MainDisplay).show_experiment(exp)
+                        main = self._main_display()
+                        if main is not None:
+                            main.show_experiment(exp)
                     break
 
     async def _refresh_services(self) -> None:
@@ -145,22 +149,30 @@ class EvolverTUI(App):
         self, message: LivePanel.ExperimentSelected
     ) -> None:
         self._selected_experiment = message.experiment
-        self.query_one(MainDisplay).show_experiment(message.experiment)
+        main = self._main_display()
+        if main is not None:
+            main.show_experiment(message.experiment)
 
     def on_live_panel_evolver_selected(
         self, message: LivePanel.EvolverSelected
     ) -> None:
-        self.query_one(MainDisplay).show_evolver(message.evolver)
+        main = self._main_display()
+        if main is not None:
+            main.show_evolver(message.evolver)
 
     def on_live_panel_service_selected(
         self, message: LivePanel.ServiceSelected
     ) -> None:
-        self.query_one(MainDisplay).show_service(message.service)
+        main = self._main_display()
+        if main is not None:
+            main.show_service(message.service)
 
     def on_live_panel_scope_focused(
         self, message: LivePanel.ScopeFocused
     ) -> None:
-        self.query_one(MainDisplay).show_scope(message.scope)
+        main = self._main_display()
+        if main is not None:
+            main.show_scope(message.scope)
 
     async def on_live_panel_pause_requested(
         self, message: LivePanel.PauseRequested
@@ -513,6 +525,12 @@ class EvolverTUI(App):
         except Exception:
             return False
 
+    def _main_display(self) -> Optional[MainDisplay]:
+        try:
+            return self.query_one(MainDisplay)
+        except NoMatches:
+            return None
+
     def action_focus_main(self) -> None:
         self.query_one(MainDisplay).focus_default()
 
@@ -618,24 +636,7 @@ class EvolverTUI(App):
         inventory.update_hw_devices(list(self._demo_data.get("devices", [])))
 
     def _available_key_help(self) -> list[str]:
-        return [
-            "0 focus context/details pane",
-            "1-5 focus numbered windows",
-            "[ / ] or left/right switch tabs inside focused window",
-            "? search available keybindings",
-            "/ fuzzy search current list",
-            "a add entry in editable list scopes",
-            "e edit focused entry in editable list scopes",
-            "delete delete focused entry in editable list scopes",
-            "enter opens focused row; starts inactive services",
-            "space runs the current scope option when enabled",
-            "r restart focused service or run selected experiment",
-            "p pause/resume supported live entries",
-            "x stop/delete supported focused entries",
-            "d load demo data",
-            "q or ctrl+c exit TUI",
-            "escape clears transient focus",
-        ]
+        return key_help_lines()
 
     def _log(self, msg: str) -> None:
         ts = datetime.now().strftime("%H:%M:%S")

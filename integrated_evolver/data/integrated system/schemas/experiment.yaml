@@ -1,0 +1,109 @@
+id: https://w3id.org/evolver/integrated-system/experiment
+name: integrated_evolver_experiment
+title: Integrated eVOLVER Experiment Schema
+imports:
+  - linkml:types
+  - base
+  - hardware
+  - inventory
+  - calibration
+  - actions
+  - protocol
+prefixes:
+  linkml: https://w3id.org/linkml/
+  evolver: https://w3id.org/evolver/
+default_prefix: evolver
+default_range: string
+
+classes:
+  Experiment:
+    is_a: NamedEntity
+    description: A concrete experimental run.
+    attributes:
+      protocol_id:
+        range: Protocol
+        required: true
+      experiment_type:
+        range: ExperimentTypeEnum
+      status:
+        range: ExperimentStatusEnum
+      started_at:
+        range: datetime
+      ended_at:
+        range: datetime
+      operators:
+        range: PersonOrAgent
+        multivalued: true
+        inlined_as_list: true
+      device_assignments:
+        range: DeviceAssignment
+        multivalued: true
+        inlined_as_list: true
+      material_assignments:
+        range: MaterialAssignment
+        multivalued: true
+        inlined_as_list: true
+      sample_ids:
+        range: ResearchSample
+        multivalued: true
+      component_configurations:
+        range: ComponentConfiguration
+        multivalued: true
+        inlined_as_list: true
+      calibration_ids:
+        range: CalibrationRecord
+        multivalued: true
+      runtime_parameter_overrides:
+        range: RuntimeParameter
+        multivalued: true
+        inlined_as_list: true
+      action_log:
+        range: ActionExecution
+        multivalued: true
+        inlined_as_list: true
+      documentation_ids:
+        range: DocumentationReference
+        multivalued: true
+
+  DeviceAssignment:
+    description: Device, unit, or component assignment for an experiment.
+    attributes:
+      role:
+        required: true
+      device_id:
+        range: Device
+      component_id:
+        range: Component
+      unit_id:
+        range: EvolverUnit
+      required:
+        range: boolean
+
+  MaterialAssignment:
+    description: Material or container assignment for an experiment.
+    attributes:
+      role:
+        range: MaterialRoleEnum
+      material_id:
+        range: Material
+      container_id:
+        range: Container
+      sample_id:
+        range: ResearchSample
+      starting_amount:
+        range: Quantity
+        inlined: true
+      remaining_amount:
+        range: Quantity
+        inlined: true
+
+enums:
+  ExperimentStatusEnum:
+    permissible_values:
+      planned: {}
+      preparing: {}
+      running: {}
+      paused: {}
+      completed: {}
+      cancelled: {}
+      failed: {}
