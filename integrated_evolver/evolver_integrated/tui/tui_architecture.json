@@ -24,7 +24,6 @@
         "summary": "default always-visible runtime console"
       },
       "options": {
-        "can_activate_context": false,
         "can_toggle_option": false,
         "opens_form": false
       },
@@ -101,7 +100,7 @@
                 "item_context": "experiment.focused"
               },
               "data": {
-                "source": "control_api.list_experiments",
+                "source": "json_store.experiments",
                 "empty_state": "No experiments",
                 "rows": [
                   {"field": "state", "display": "state icon", "fallback": "?"},
@@ -136,10 +135,10 @@
                 "item_context": "evolver.focused"
               },
               "data": {
-                "source": "demo_data.evolver_units until hardware inventory API exists",
+                "source": "json_store.evolver_units",
                 "empty_state": "No eVOLVER units connected",
                 "rows": [
-                  {"field": "state", "display": "active-state icon", "fallback": "unknown"},
+                  {"field": "state", "display": "state icon", "fallback": "unknown"},
                   {"field": "name", "display": "unit name", "fallback": "id"},
                   {"field": "state", "display": "unit state label", "fallback": "unknown"},
                   {"field": "role", "display": "unit role", "fallback": "-", "detail_only": true},
@@ -217,10 +216,10 @@
               "context": {
                 "scope": "inventory.protocols",
                 "item_context": "inventory.protocols.focused",
-                "active_context": "inventory.protocols.active"
+                "focused_context": "inventory.protocols.focused"
               },
               "data": {
-                "source": "demo_data.protocols until inventory API exists",
+                "source": "json_store.protocols",
                 "empty_state": "No protocols - create one first",
                 "rows": [
                   {"field": "name", "display": "protocol name", "fallback": "?"},
@@ -230,14 +229,12 @@
                 ]
               },
               "options": {
-                "can_activate_context": true,
                 "opens_form": true
               },
               "keybinds": {
                 "inherits": ["list_keybindings"],
                 "available": [
                   {"key": "a", "action": "protocol.create", "label": "Add protocol", "enabled_when": "options.opens_form"},
-                  {"key": "space", "action": "activate", "label": "Activate focused protocol context", "enabled_when": "options.can_activate_context"},
                   {"key": "enter", "action": "protocol.open", "label": "Open protocol"},
                   {"key": "e", "action": "protocol.edit", "label": "Edit protocol"},
                   {"key": "delete", "action": "protocol.delete", "label": "Delete protocol"}
@@ -252,7 +249,7 @@
                 "item_context": "inventory.materials.focused"
               },
               "data": {
-                "source": "demo_data.materials until inventory API exists",
+                "source": "json_store.materials",
                 "empty_state": "No materials registered",
                 "rows": [
                   {"field": "name", "display": "material name", "fallback": "?"},
@@ -283,7 +280,7 @@
                 "item_context": "inventory.devices.focused"
               },
               "data": {
-                "source": "demo_data.devices until inventory API exists",
+                "source": "json_store.devices",
                 "empty_state": "No devices configured",
                 "rows": [
                   {"field": "name", "display": "device name", "fallback": "?"},
@@ -317,18 +314,14 @@
           "global_key": "4",
           "context": {
             "scope": "steps",
-            "parent": "inventory.protocols.active",
+            "inherits_focus_from": "inventory.protocols.focused",
             "item_context": "steps.focused",
-            "active_context": "steps.active"
-          },
-          "options": {
-            "can_activate_context": true
+            "focused_context": "steps.focused"
           },
           "keybinds": {
             "inherits": ["global_keybindings", "list_keybindings"],
             "available": [
               {"key": "enter", "action": "step.open", "label": "Open step context"},
-              {"key": "space", "action": "activate", "label": "Activate focused step context", "enabled_when": "options.can_activate_context"},
               {"key": "a", "action": "step.create", "label": "Add step"},
               {"key": "e", "action": "step.edit", "label": "Edit step"},
               {"key": "delete", "action": "step.delete", "label": "Delete step"}
@@ -339,7 +332,7 @@
               "id": "default",
               "name": "Steps",
               "data": {
-                "source": "inventory.protocols.active.steps",
+                "source": "json_store.protocols.focused.steps",
                 "empty_state": "No steps defined",
                 "rows": [
                   {"field": "index", "display": "1-based step order", "fallback": "row index"},
@@ -360,7 +353,7 @@
           "global_key": "5",
           "context": {
             "scope": "components",
-            "parent": "steps.active",
+            "inherits_focus_from": "steps.focused",
             "item_context": "components.focused"
           },
           "options": {
@@ -381,10 +374,14 @@
               "id": "default",
               "name": "Components",
               "data": {
-                "source": "steps.active.components",
+                "source": "json_store.protocols.focused.steps.focused.components",
+                "references": [
+                  "json_store.materials",
+                  "json_store.devices"
+                ],
                 "empty_state": "No components defined for this step",
                 "rows": [
-                  {"field": "enabled", "display": "enabled/active underline state", "fallback": true},
+                  {"field": "enabled", "display": "enabled underline state", "fallback": true},
                   {"field": "name", "display": "component name", "fallback": "?"},
                   {"field": "type", "display": "component type", "fallback": ""},
                   {"field": "io_role", "display": "I/O role", "fallback": "", "optional": true}
@@ -402,7 +399,7 @@
     {"key": "?", "action": "key_help", "description": "Fuzzy search available keybindings"},
     {"key": "q", "action": "quit", "description": "Exit TUI"},
     {"key": "ctrl+c", "action": "dismiss_or_quit", "description": "Dismiss popup first, otherwise exit TUI"},
-    {"key": "esc", "action": "clear_focus_or_deactivate", "description": "Clear focus, or deactivate active UI entry"}
+    {"key": "esc", "action": "clear_focus", "description": "Clear transient focus where supported"}
   ],
   "tab_keybindings": [
     {"key": "left/[", "action": "previous_tab", "description": "Switch to previous tab in the focused window"},
@@ -410,20 +407,22 @@
   ],
   "list_keybindings": [
     {"key": "up/down", "action": "move_focus", "description": "Move transient focus within current list"},
-    {"key": "space", "action": "option_action", "description": "Activate context, toggle flag, or select only when the focused scope enables the relevant option"},
+    {"key": "space", "action": "option_action", "description": "Run the focused scope option, such as config or toggle, only where that option is enabled"},
     {"key": "enter", "action": "open", "description": "Open detail popup or form where supported"},
     {"key": "a", "action": "add", "description": "Add entry for the current tab when form options are enabled"},
     {"key": "e", "action": "edit", "description": "Edit focused entry"},
     {"key": "delete", "action": "delete", "description": "Delete focused entry"},
     {"key": "/", "action": "search", "description": "Fuzzy search current list"}
   ],
-  "activation_model": {
+  "focus_model": {
     "ui_only": true,
-    "types": [
-      {
-        "type": "context",
-        "description": "Sets one or more nested UI contexts, such as protocol then step."
-      },
+    "description": "Highlighted rows are durable focused context. A dependent window reads the focused row from its parent window until that parent window highlights a different row or switches tabs.",
+    "selection_states": [
+      "none",
+      "focused",
+      "focused_in_inactive_window"
+    ],
+    "option_actions": [
       {
         "type": "toggle",
         "description": "Toggles an enabled/value flag, such as component enabled."
@@ -432,12 +431,6 @@
         "type": "form",
         "description": "Opens a popup form and does not retain persistent focus after the form closes."
       }
-    ],
-    "selection_states": [
-      "none",
-      "focused",
-      "active",
-      "active_inactive_window"
     ]
   },
   "forms": {
@@ -446,7 +439,7 @@
       "tab/shift+tab moves between fields",
       "progress is retained while moving between fields",
       "supports text entry, checkbox, and multi-select fields",
-      "field options may depend on active UI context"
+      "field options may depend on focused UI context"
     ],
     "planned_forms": [
       "experiment.create",

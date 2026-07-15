@@ -77,7 +77,7 @@ ComponentsPanel:focus-within ListView > ListItem.persistent-highlight {
     text-style: underline;
 }
 
-ListView > ListItem.active-row {
+ListView > ListItem.state-emphasis-row {
     text-style: underline;
 }
 

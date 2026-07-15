@@ -261,7 +261,7 @@ def test_tui_architecture_uses_pages_before_windows():
     ]
 
 
-def test_tui_architecture_context_and_options_gate_activation():
+def test_tui_architecture_uses_focus_context_inheritance():
     path = (
         Path(__file__).parents[1]
         / "evolver_integrated"
@@ -274,25 +274,67 @@ def test_tui_architecture_context_and_options_gate_activation():
     inventory = next(
         window for window in page["windows"] if window["id"] == "inventory"
     )
+    steps = next(
+        window for window in page["windows"] if window["id"] == "steps"
+    )
+    components = next(
+        window for window in page["windows"] if window["id"] == "components"
+    )
     protocols = next(
         tab for tab in inventory["tabs"] if tab["id"] == "protocols"
     )
     materials = next(
         tab for tab in inventory["tabs"] if tab["id"] == "materials"
     )
-
-    assert protocols["context"]["active_context"] == (
-        "inventory.protocols.active"
+    steps_tab = steps["tabs"][0]
+    components_tab = components["tabs"][0]
+    live = next(
+        window for window in page["windows"] if window["id"] == "live"
     )
-    assert protocols["options"]["can_activate_context"] is True
-    assert "can_activate_context" not in materials["options"]
+    experiments = next(
+        tab for tab in live["tabs"] if tab["id"] == "experiments"
+    )
+    evolver_units = next(
+        tab for tab in live["tabs"] if tab["id"] == "evolver_units"
+    )
+    devices = next(
+        tab for tab in inventory["tabs"] if tab["id"] == "devices"
+    )
+
+    assert protocols["context"]["focused_context"] == (
+        "inventory.protocols.focused"
+    )
+    assert experiments["data"]["source"] == "json_store.experiments"
+    assert evolver_units["data"]["source"] == "json_store.evolver_units"
+    assert protocols["data"]["source"] == "json_store.protocols"
+    assert materials["data"]["source"] == "json_store.materials"
+    assert devices["data"]["source"] == "json_store.devices"
+    assert steps["context"]["inherits_focus_from"] == (
+        "inventory.protocols.focused"
+    )
+    assert steps["context"]["focused_context"] == "steps.focused"
+    assert steps_tab["data"]["source"] == (
+        "json_store.protocols.focused.steps"
+    )
+    assert components["context"]["inherits_focus_from"] == "steps.focused"
+    assert components_tab["data"]["source"] == (
+        "json_store.protocols.focused.steps.focused.components"
+    )
+    assert components_tab["data"]["references"] == [
+        "json_store.materials",
+        "json_store.devices",
+    ]
 
     protocol_actions = [
         action["action"]
         for action in protocols["keybinds"]["available"]
     ]
-    assert "protocol.set_active" not in protocol_actions
-    assert "activate" in protocol_actions
+    assert "activate" not in protocol_actions
+    assert "can_activate_context" not in protocols.get("options", {})
+    assert "can_activate_context" not in materials.get("options", {})
+
+    assert "activation_model" not in architecture
+    assert architecture["focus_model"]["ui_only"] is True
 
 
 def test_tui_architecture_spells_out_tab_data_rows():
@@ -319,10 +361,10 @@ def test_tui_architecture_spells_out_tab_data_rows():
             assert row["display"]
 
 
-def test_active_rows_are_underlined():
+def test_focused_and_emphasized_rows_are_underlined():
     from evolver_integrated.tui.panels import _list_item
 
-    item = _list_item("active", active=True)
+    item = _list_item("emphasized", emphasized=True)
     inactive = _list_item("inactive")
     css = (
         Path(__file__).parents[1]
@@ -331,9 +373,10 @@ def test_active_rows_are_underlined():
         / "evolver.tcss"
     ).read_text()
 
-    assert item.has_class("active-row")
-    assert not inactive.has_class("active-row")
-    assert "ListView > ListItem.active-row" in css
+    assert item.has_class("state-emphasis-row")
+    assert not inactive.has_class("state-emphasis-row")
+    assert "ListView > ListItem.state-emphasis-row" in css
+    assert "ListView > ListItem.persistent-highlight" in css
     assert "text-style: underline;" in css
 
 

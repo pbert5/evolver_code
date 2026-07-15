@@ -444,14 +444,14 @@ class EvolverTUI(App):
             "a add entry in editable list scopes",
             "e edit focused entry in editable list scopes",
             "delete delete focused entry in editable list scopes",
-            "enter activate focused row; starts inactive services",
+            "enter opens focused row; starts inactive services",
             "space runs the current scope option when enabled",
             "r restart focused service or run selected experiment",
             "p pause/resume supported live entries",
             "x stop/delete supported focused entries",
             "d load demo data",
             "q or ctrl+c exit TUI",
-            "escape clears focus/deactivates entries in a future slice",
+            "escape clears transient focus in a future slice",
         ]
 
     def _log(self, msg: str) -> None:

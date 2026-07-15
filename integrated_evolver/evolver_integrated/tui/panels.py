@@ -112,9 +112,9 @@ def _mark_list_selection(list_view: ListView) -> None:
         child.set_class(child_idx == idx, "persistent-highlight")
 
 
-def _list_item(label: str, *, active: bool = False) -> ListItem:
+def _list_item(label: str, *, emphasized: bool = False) -> ListItem:
     item = ListItem(Label(label))
-    item.set_class(active, "active-row")
+    item.set_class(emphasized, "state-emphasis-row")
     return item
 
 # ── [1] Status ────────────────────────────────────────────────────────────────
@@ -156,7 +156,7 @@ class LivePanel(Widget):
         Binding("[,left", "prev_tab", "Prev tab", show=False),
         Binding("],right", "next_tab", "Next tab", show=False),
         Binding("/", "fuzzy_search", "Search", show=True),
-        Binding("enter", "activate_item", "Start/Open"),
+        Binding("enter", "open_item", "Start/Open"),
         Binding("space", "config_item", "Config"),
         Binding("a", "new_exp", "Add experiment"),
         Binding("e", "edit_item", "Edit"),
@@ -319,7 +319,7 @@ class LivePanel(Widget):
             lv.append(
                 _list_item(
                     f" [bold]{icon}[/bold] {name}  [{state}]",
-                    active=state == "active",
+                    emphasized=state == "active",
                 )
             )
         _restore_list_index(lv, experiments, old_key, old_idx)
@@ -348,7 +348,7 @@ class LivePanel(Widget):
             lv.append(
                 _list_item(
                     f" [bold]{icon}[/bold] {name}  [{state}]",
-                    active=state == "active",
+                    emphasized=state == "active",
                 )
             )
         _restore_list_index(lv, devices, old_key, old_idx)
@@ -369,7 +369,7 @@ class LivePanel(Widget):
             lv.append(
                 _list_item(
                     f" [bold]{icon}[/bold] {name}  [{state}]",
-                    active=state in ("active", "running", "queued"),
+                    emphasized=state in ("active", "running", "queued"),
                 )
             )
         _restore_list_index(lv, jobs, None, lv.index)
@@ -402,7 +402,7 @@ class LivePanel(Widget):
                 _list_item(
                     f" [bold {color}]{icon}[/bold {color}] {name}"
                     f"  [{category}/{state}]",
-                    active=state == "active",
+                    emphasized=state == "active",
                 )
             )
         _restore_list_index(lv, services, old_key, old_idx)
@@ -444,7 +444,7 @@ class LivePanel(Widget):
             return self._devices[idx]
         return None
 
-    def action_activate_item(self) -> None:
+    def action_open_item(self) -> None:
         if self._tc().active == "services":
             service = self._focused_service()
             state = str(service.get("state", "")).lower() if service else ""
@@ -542,7 +542,6 @@ class InventoryPanel(Widget):
         Binding("[,left", "prev_tab", "Prev tab", show=False),
         Binding("],right", "next_tab", "Next tab", show=False),
         Binding("/", "fuzzy_search", "Search", show=True),
-        Binding("space", "select_item", "Option", show=True),
         Binding("a", "add_item", "Add"),
         Binding("e", "edit_item", "Edit"),
         Binding("delete", "delete_item", "Delete"),
@@ -652,20 +651,14 @@ class InventoryPanel(Widget):
             items = [d.get("name", "?") for d in self._hw_devices]
             self.post_message(self.FuzzySearchRequested(items, "devices"))
 
-    def action_select_item(self) -> None:
-        if self._tc().active != "protocols":
-            self._post_current_context()
-            return
-        self._post_current_context(activate=True)
-
     def on_list_view_selected(self, _event: ListView.Selected) -> None:
-        self.action_select_item()
+        self._post_current_context()
 
     def on_list_view_highlighted(self, event: ListView.Highlighted) -> None:
         _mark_list_selection(event.list_view)
         self._post_current_context()
 
-    def _post_current_context(self, activate: bool = False) -> None:
+    def _post_current_context(self) -> None:
         tc = self._tc()
         if tc.active == "protocols":
             proto = self._focused_protocol()
@@ -865,7 +858,7 @@ class StepsPanel(Widget):
             lv.append(
                 _list_item(
                     f" {icon} {i + 1}. {label}",
-                    active=i == current_step,
+                    emphasized=i == current_step,
                 )
             )
         _mark_list_selection(lv)
@@ -982,7 +975,7 @@ class ComponentsPanel(Widget):
             lv.append(
                 _list_item(
                     f" · {name}  [{comp_type}]{suffix}",
-                    active=enabled,
+                    emphasized=enabled,
                 )
             )
         _mark_list_selection(lv)

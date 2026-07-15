@@ -159,7 +159,7 @@ Sketch:
 Shows connected or demo eVOLVER units and assignment state.
 
 Row data:
-- `state`: maps to the active-state icon and visible state label.
+- `state`: maps to the state icon and visible state label.
 - `name`: primary unit label, falling back to `id`.
 - `role`: unit role in detail context.
 - `devices`: attached device count and device names in detail context.
@@ -300,7 +300,7 @@ Shows:
 - Binding to physical/logical device when available.
 
 Row data:
-- `enabled`: controls active underline state.
+- `enabled`: controls enabled-row underline state.
 - `name`: primary component label.
 - `type`: component type.
 - `io_role`: optional visible role suffix.
@@ -396,11 +396,11 @@ context pane; `1`-`5` focus the left windows.
 
 Tab switching inside a focused window (`[` / `]`, `left` / `right`, or mouse
 click on a tab) must keep keyboard focus inside that same numbered window by
-moving focus to the newly active tab's list. Focus must not jump to Main
+moving focus to the newly selected tab's list. Focus must not jump to Main
 Detail as a side effect of tab changes.
 
 Each list keeps a persistent selected row while its backing item still exists.
-When the window owns focus, the selected row uses the active highlight. When
+When the window owns focus, the selected row uses the focused highlight. When
 focus moves to another window, the selected row remains visible in a muted
 state. If the backing item disappears from refreshed data, selection falls
 back to the nearest available row. This must be implemented as an explicit
@@ -409,10 +409,21 @@ highlighting, so row `0` remains visibly selected after refreshes and tab
 changes.
 
 By default, list tabs do not auto-select the first row. If a list has no
-focused or active entry, the Context pane should show scope-level guidance and
-prompt arrow up/down or click to choose a row. Active entries are UI-only
-state: they may set nested context, toggle an option, or open a form, but do
-not directly imply hardware state.
+focused entry, the Context pane should show scope-level guidance and prompt
+arrow up/down or click to choose a row. There is no separate activation state
+for protocol/step context. The highlighted row is the durable focused context
+for that window until the operator highlights another row or switches to
+another tab.
+
+Dependent windows inherit from focused parent rows. [4] Steps reads the
+focused protocol from [3] Inventory / Protocols and renders
+`json_store.protocols.focused.steps`. [5] Components reads the focused step
+from [4] Steps and renders
+`json_store.protocols.focused.steps.focused.components`. Component forms may
+reference `json_store.materials` and `json_store.devices` for binding choices.
+The persisted JSON stores are expected to keep protocols, materials, devices,
+eVOLVER units, and experiments in clean object shapes that the architecture
+contract can reference directly.
 
 Polling refreshes should not visually rebuild unchanged lists. If a service
 snapshot is identical to the current one, the Services list must keep its
@@ -515,20 +526,19 @@ them: `pages[].windows[].keybinds` and
 `pages[].windows[].tabs[].keybinds`.
 
 Context metadata follows the same inheritance path. A page can define broad
-context, a window can refine it, and a tab can set item-level or active parent
-context such as `inventory.protocols.active` or `steps.active`. Context pane
-content should be derived from the effective focused scope rather than from a
-separate hard-coded context table.
+context, a window can refine it, and a tab can set item-level focused context
+such as `inventory.protocols.focused` or `steps.focused`. Context pane content
+should be derived from the effective focused scope rather than from a separate
+hard-coded context table.
 
 Options also inherit downward. Defaults are false, and higher scopes can enable
 an option for all descendants unless a lower scope overrides it. Keybindings
-can be declared anywhere, but activation-style bindings are only effective
-when the matching option is enabled for the focused scope. For example,
-Protocols enables `can_activate_context`, so `space` activates the focused
-protocol context; Materials does not enable that option, so it should not be
-presented as a set-active action. Components enables `can_toggle_option`, so
-`space` maps to component enablement there. Live / Services enables
-`opens_form`, so `space` opens service config when details are available.
+can be declared anywhere, but option bindings are only effective when the
+matching option is enabled for the focused scope. Components enables
+`can_toggle_option`, so `space` maps to component enablement there. Live /
+Services enables `opens_form`, so `space` opens service config when details
+are available. Protocol and step context do not use `space`; highlighting a
+row is sufficient.
 
 The context pane should show the same scope-aware suggestions the operator can
 use in the focused tab. For Live / Services, `enter` starts an inactive focused
