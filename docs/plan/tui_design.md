@@ -338,6 +338,10 @@ from a retained object-specific cache. The descriptor is:
 `entry_index`, and inherited `parent_contexts` such as protocol -> step.
 Polling may refresh backing data, but it should only refresh detail content
 when the effective focused scope explicitly expresses a refresh policy.
+List refreshes may restore persistent row highlights for inactive windows,
+but highlight events from those refreshes must not emit context unless that
+list currently owns keyboard focus. Repeated renders of identical Context
+content should be treated as no-ops.
 
 Detail variants:
 - Scope detail: when no row is focused, explain what the focused window/tab is

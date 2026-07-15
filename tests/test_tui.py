@@ -1159,7 +1159,7 @@ def test_live_panel_hides_restart_pause_for_unmanaged_service(monkeypatch):
     asyncio.run(run_app())
 
 
-def test_experiment_refresh_does_not_redraw_context(monkeypatch):
+def test_experiment_refresh_only_updates_current_live_experiments_context(monkeypatch):
     from evolver_integrated.tui.app import EvolverTUI
     from evolver_integrated.tui.panels import LivePanel, MainDisplay
 
@@ -1200,6 +1200,7 @@ def test_experiment_refresh_does_not_redraw_context(monkeypatch):
         "evolver_integrated.tui.client.ControlAPIClient.list_experiments",
         experiments,
     )
+    monkeypatch.setattr(EvolverTUI, "set_interval", lambda *args, **kwargs: None)
 
     rendered = []
     original_show_experiment = MainDisplay.show_experiment
@@ -1267,10 +1268,88 @@ def test_experiment_refresh_does_not_redraw_context(monkeypatch):
             live.focus_default()
             assert app.focused is not None
             assert app.focused.id == "exp-list"
+            await pilot.pause()
             rendered.clear()
+            selected["state"] = "paused"
             await app._refresh_experiments()
-            assert rendered == []
+            await pilot.pause()
+            assert rendered
+            assert set(rendered) == {"exp-1"}
             assert live._experiments == [selected]
+
+    asyncio.run(run_app())
+
+
+def test_refresh_does_not_create_competing_context_writes(monkeypatch):
+    from evolver_integrated.tui.app import EvolverTUI
+    from evolver_integrated.tui.panels import MainDisplay
+
+    async def noop_start(self):
+        return None
+
+    async def noop_stop(self):
+        return None
+
+    async def empty_dict(self):
+        return {"status": "ok"}
+
+    async def empty_list(self):
+        return []
+
+    selected = {"id": "exp-1", "state": "running"}
+
+    async def experiments(self):
+        return [selected]
+
+    monkeypatch.setattr(
+        "evolver_integrated.tui.client.ControlAPIClient.start",
+        noop_start,
+    )
+    monkeypatch.setattr(
+        "evolver_integrated.tui.client.ControlAPIClient.stop",
+        noop_stop,
+    )
+    monkeypatch.setattr(
+        "evolver_integrated.tui.client.ControlAPIClient.health",
+        empty_dict,
+    )
+    monkeypatch.setattr(
+        "evolver_integrated.tui.client.ControlAPIClient.list_services",
+        empty_list,
+    )
+    monkeypatch.setattr(
+        "evolver_integrated.tui.client.ControlAPIClient.list_experiments",
+        experiments,
+    )
+    monkeypatch.setattr(EvolverTUI, "set_interval", lambda *args, **kwargs: None)
+
+    context_writes = []
+    original_update = MainDisplay._update
+
+    def record_update(self, lines):
+        context_writes.append(lines[0] if lines else "")
+        original_update(self, lines)
+
+    monkeypatch.setattr(MainDisplay, "_update", record_update)
+
+    app = EvolverTUI()
+
+    async def run_app():
+        async with app.run_test() as pilot:
+            await pilot.pause()
+            assert app.focused is not None
+            assert app.focused.id == "exp-list"
+
+            await pilot.press("3")
+            await pilot.pause()
+            assert app.focused is not None
+            assert app.focused.id == "proto-list"
+
+            context_writes.clear()
+            await app._refresh_experiments()
+            await pilot.pause()
+
+            assert context_writes == []
 
     asyncio.run(run_app())
 

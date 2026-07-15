@@ -118,6 +118,10 @@ def _mark_list_selection(list_view: ListView) -> None:
         child.set_class(child_idx == idx, "persistent-highlight")
 
 
+def _owns_keyboard_focus(list_view: ListView) -> bool:
+    return list_view.app.focused is list_view
+
+
 def _list_item(label: str, *, emphasized: bool = False) -> ListItem:
     item = ListItem(Label(label))
     item.set_class(emphasized, "state-emphasis-row")
@@ -250,6 +254,9 @@ class LivePanel(Widget, can_focus=True):
         self._experiments: list[dict] = []
         self._devices: list[dict] = []
         self._services: list[dict] = []
+        self._suppress_list_context = False
+        self._list_refresh_tokens: dict[str, int] = {}
+        self._context_post_token = 0
 
     def compose(self) -> ComposeResult:
         with TabbedContent(id="live-tabs"):
@@ -275,7 +282,7 @@ class LivePanel(Widget, can_focus=True):
         _mark_list_selection(list_view)
         list_view.focus()
         self.app.refresh_bindings()
-        self._post_current_context()
+        self._schedule_focused_context_post(self._tc().active, list_view)
 
     def _active_items(self) -> list[dict]:
         return {
@@ -355,6 +362,7 @@ class LivePanel(Widget, can_focus=True):
             else None
         )
         self._experiments = experiments
+        self._suppress_list_context = True
         lv.clear()
         for exp in experiments:
             icon = _STATE_ICONS.get(exp.get("state", ""), "?")
@@ -367,6 +375,7 @@ class LivePanel(Widget, can_focus=True):
                 )
             )
         _restore_list_index(lv, experiments, old_key, old_idx)
+        self._schedule_list_refresh_context("experiments", lv)
 
     def update_devices(self, devices: list[dict]) -> None:
         lv = self.query_one("#evolver-list", ListView)
@@ -377,6 +386,7 @@ class LivePanel(Widget, can_focus=True):
             else None
         )
         self._devices = devices
+        self._suppress_list_context = True
         lv.clear()
         if not devices:
             lv.append(
@@ -384,6 +394,7 @@ class LivePanel(Widget, can_focus=True):
             )
             lv.index = None
             _mark_list_selection(lv)
+            self._schedule_list_refresh_context("evolvers", lv)
             return
         for dev in devices:
             name = dev.get("name", dev.get("id", "?"))
@@ -396,6 +407,7 @@ class LivePanel(Widget, can_focus=True):
                 )
             )
         _restore_list_index(lv, devices, old_key, old_idx)
+        self._schedule_list_refresh_context("evolvers", lv)
 
     def update_jobs(self, jobs: list[dict]) -> None:
         lv = self.query_one("#service-list", ListView)
@@ -429,11 +441,13 @@ class LivePanel(Widget, can_focus=True):
             else None
         )
         self._services = services
+        self._suppress_list_context = True
         lv.clear()
         if not services:
             lv.append(ListItem(Label("[dim]No configured services[/dim]")))
             lv.index = None
             _mark_list_selection(lv)
+            self._schedule_list_refresh_context("services", lv)
             return
         for service in services:
             state = service.get("state", "unknown")
@@ -450,10 +464,78 @@ class LivePanel(Widget, can_focus=True):
                 )
             )
         _restore_list_index(lv, services, old_key, old_idx)
+        self._schedule_list_refresh_context("services", lv)
 
     def on_list_view_highlighted(self, event: ListView.Highlighted) -> None:
         _mark_list_selection(event.list_view)
-        self._post_current_context()
+        if self._suppress_list_context:
+            return
+        if (
+            event.list_view.id != self._active_list_selector().lstrip("#")
+            or not _owns_keyboard_focus(event.list_view)
+        ):
+            return
+        self._schedule_focused_context_post(self._tc().active, event.list_view)
+
+    def _schedule_list_refresh_context(
+        self,
+        tab_id: str,
+        list_view: ListView,
+    ) -> None:
+        token = self._list_refresh_tokens.get(tab_id, 0) + 1
+        self._list_refresh_tokens[tab_id] = token
+        should_post = (
+            self._tc().active == tab_id and _owns_keyboard_focus(list_view)
+        )
+        self.call_after_refresh(
+            self._finish_list_refresh_context,
+            tab_id,
+            list_view,
+            token,
+            should_post,
+        )
+
+    def _finish_list_refresh_context(
+        self,
+        tab_id: str,
+        list_view: ListView,
+        token: int,
+        should_post: bool,
+    ) -> None:
+        if self._list_refresh_tokens.get(tab_id) != token:
+            return
+        self._suppress_list_context = False
+        if (
+            should_post
+            and self._tc().active == tab_id
+            and _owns_keyboard_focus(list_view)
+        ):
+            self._schedule_focused_context_post(tab_id, list_view)
+
+    def _schedule_focused_context_post(
+        self,
+        tab_id: str,
+        list_view: ListView,
+    ) -> None:
+        self._context_post_token += 1
+        token = self._context_post_token
+        self.call_after_refresh(
+            self._post_scheduled_context,
+            token,
+            tab_id,
+            list_view,
+        )
+
+    def _post_scheduled_context(
+        self,
+        token: int,
+        tab_id: str,
+        list_view: ListView,
+    ) -> None:
+        if token != self._context_post_token:
+            return
+        if self._tc().active == tab_id and _owns_keyboard_focus(list_view):
+            self._post_current_context()
 
     def _post_current_context(self) -> None:
         tc = self._tc()
@@ -745,10 +827,17 @@ class InventoryPanel(Widget, can_focus=True):
             self.post_message(self.FuzzySearchRequested(items, "devices"))
 
     def on_list_view_selected(self, _event: ListView.Selected) -> None:
+        if not _owns_keyboard_focus(_event.list_view):
+            return
         self._post_current_context()
 
     def on_list_view_highlighted(self, event: ListView.Highlighted) -> None:
         _mark_list_selection(event.list_view)
+        if (
+            event.list_view.id != self._active_list_selector().lstrip("#")
+            or not _owns_keyboard_focus(event.list_view)
+        ):
+            return
         self._post_current_context()
 
     def _post_current_context(self) -> None:
@@ -1046,6 +1135,8 @@ class StepsPanel(Widget, can_focus=True):
         self, event: ListView.Highlighted
     ) -> None:
         _mark_list_selection(event.list_view)
+        if not _owns_keyboard_focus(event.list_view):
+            return
         idx = self.query_one("#steps-list", ListView).index
         if idx is not None and 0 <= idx < len(self._steps):
             self.post_message(self.StepSelected(self._protocol, self._steps[idx], idx))
@@ -1179,6 +1270,8 @@ class ComponentsPanel(Widget, can_focus=True):
 
     def on_list_view_highlighted(self, event: ListView.Highlighted) -> None:
         _mark_list_selection(event.list_view)
+        if not _owns_keyboard_focus(event.list_view):
+            return
         idx = event.list_view.index
         if idx is not None and 0 <= idx < len(self._components):
             self.post_message(
@@ -1208,13 +1301,18 @@ class MainDisplay(Widget, can_focus=True):
     )
 
     def compose(self) -> ComposeResult:
+        self._last_content = self._WELCOME
         yield Static(self._WELCOME, id="main-content")
 
     def focus_default(self) -> None:
         self.focus()
 
     def _update(self, lines: list[str]) -> None:
-        self.query_one("#main-content", Static).update("\n".join(lines))
+        content = "\n".join(lines)
+        if content == getattr(self, "_last_content", None):
+            return
+        self._last_content = content
+        self.query_one("#main-content", Static).update(content)
 
     def show_scope(self, scope: str) -> None:
         content = {
