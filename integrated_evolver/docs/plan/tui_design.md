@@ -561,6 +561,10 @@ Live / Services shows service open/config/restart/pause/stop actions. Actions
 from inactive tabs should be hidden rather than shown as if they apply. Service
 actions must also respect the focused service category; unmanaged services hide
 restart and pause/resume even while the Services tab is focused.
+The TUI action catalog is owned by `evolver_integrated/tui/actions.json`.
+Python should load this catalog and dispatch Textual callbacks, while tab-level
+action availability, service lifecycle command names, managed-only action
+restrictions, and key-help copy stay declarative in JSON.
 Switching tabs inside a focused window should focus the active tab's list and
 select the first real row when no row is already selected so the footer reflects
 the active tab's row-scoped actions immediately.
