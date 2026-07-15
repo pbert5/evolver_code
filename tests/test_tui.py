@@ -560,6 +560,50 @@ def test_form_templates_create_material_and_protocol_records():
     }
 
 
+def test_template_json_field_expands_only_while_focused(monkeypatch):
+    from evolver_integrated.tui.app import EvolverTUI
+    from evolver_integrated.tui.screens import (
+        ExpandableTextArea,
+        TemplateFormScreen,
+    )
+
+    _stub_tui_client(monkeypatch)
+    monkeypatch.setattr(EvolverTUI, "set_interval", lambda *args, **kwargs: None)
+
+    template = json.loads(
+        _tui_data_path("form_templates.json").read_text()
+    )["protocol"]
+    app = EvolverTUI()
+
+    async def run_app():
+        async with app.run_test(size=(100, 24)) as pilot:
+            await pilot.pause()
+            screen = TemplateFormScreen(template)
+            await app.push_screen(screen)
+            await pilot.pause()
+
+            field = screen.query_one(
+                "#template-field-steps",
+                ExpandableTextArea,
+            )
+            assert field.styles.height.value == field.COLLAPSED_HEIGHT
+
+            field.focus()
+            await pilot.pause()
+
+            assert field.has_focus
+            assert field.styles.height.value > field.COLLAPSED_HEIGHT
+            assert field.styles.height.value <= 24 - field.SHELL_MARGIN
+
+            screen.query_one("#template-submit").focus()
+            await pilot.pause()
+
+            assert not field.has_focus
+            assert field.styles.height.value == field.COLLAPSED_HEIGHT
+
+    asyncio.run(run_app())
+
+
 def test_demo_integrated_system_matches_owned_schema():
     system = _demo_system()
     bundle = _schema_bundle()

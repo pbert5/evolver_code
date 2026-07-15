@@ -8,7 +8,7 @@ from typing import Any
 
 from textual.app import ComposeResult
 from textual.binding import Binding
-from textual.containers import Grid, Vertical
+from textual.containers import Grid, Vertical, VerticalScroll
 from textual.screen import ModalScreen
 from textual.widgets import Button, Input, Label, ListItem, ListView, TextArea
 
@@ -65,6 +65,35 @@ def record_from_template(
         if value not in ("", None):
             _set_path(record, field["path"], value)
     return record
+
+
+class ExpandableTextArea(TextArea):
+    """TextArea that grows while focused, capped by the terminal height."""
+
+    COLLAPSED_HEIGHT = 8
+    MIN_EXPANDED_HEIGHT = 8
+    SHELL_MARGIN = 12
+
+    def _watch_has_focus(self, focus: bool) -> None:
+        super()._watch_has_focus(focus)
+        self._refresh_dynamic_height()
+
+    def _refresh_dynamic_height(self) -> None:
+        text_lines = max(1, self.text.count("\n") + 1)
+        if self.has_focus:
+            shell_rows = getattr(self.app.size, "height", 32)
+            max_height = max(
+                self.MIN_EXPANDED_HEIGHT,
+                shell_rows - self.SHELL_MARGIN,
+            )
+            target_height = min(
+                max_height,
+                max(self.MIN_EXPANDED_HEIGHT, text_lines + 1),
+            )
+        else:
+            target_height = self.COLLAPSED_HEIGHT
+        self.styles.height = target_height
+        self.set_class(self.has_focus, "template-field-expanded")
 
 
 class ConfirmScreen(ModalScreen[bool]):
@@ -183,10 +212,15 @@ class TemplateFormScreen(ModalScreen[dict | None]):
     }
     #template-form-dialog {
         width: 76;
-        height: 32;
+        max-width: 90%;
+        height: 90%;
+        max-height: 36;
         border: round $primary;
         background: $surface;
         padding: 1 2;
+    }
+    #template-form-scroll {
+        height: 1fr;
     }
     #template-form-title {
         text-style: bold;
@@ -201,6 +235,9 @@ class TemplateFormScreen(ModalScreen[dict | None]):
     .template-json-field {
         width: 1fr;
         height: 8;
+    }
+    .template-field-expanded {
+        border: tall $accent;
     }
     #template-form-error {
         color: $error;
@@ -230,35 +267,40 @@ class TemplateFormScreen(ModalScreen[dict | None]):
                 self._template.get("title", "New JSON object"),
                 id="template-form-title",
             )
-            for field in self._template.get("fields", []):
-                yield Label(
-                    field["label"],
-                    classes="template-field-label",
-                )
-                field_id = f"template-field-{field['id']}"
-                initial_value = _get_path(
-                    self._initial_record, field["path"]
-                )
-                if field.get("kind") == "json":
-                    value = (
-                        initial_value
-                        if initial_value is not None
-                        else field.get("default", [])
+            with VerticalScroll(id="template-form-scroll"):
+                for field in self._template.get("fields", []):
+                    yield Label(
+                        field["label"],
+                        classes="template-field-label",
                     )
-                    text = json.dumps(value, indent=2)
-                    yield TextArea(
-                        text,
-                        language="json",
-                        id=field_id,
-                        classes="template-field template-json-field",
+                    field_id = f"template-field-{field['id']}"
+                    initial_value = _get_path(
+                        self._initial_record, field["path"]
                     )
-                else:
-                    yield Input(
-                        value="" if initial_value is None else str(initial_value),
-                        placeholder=field.get("placeholder", ""),
-                        id=field_id,
-                        classes="template-field",
-                    )
+                    if field.get("kind") == "json":
+                        value = (
+                            initial_value
+                            if initial_value is not None
+                            else field.get("default", [])
+                        )
+                        text = json.dumps(value, indent=2)
+                        yield ExpandableTextArea(
+                            text,
+                            language="json",
+                            id=field_id,
+                            classes="template-field template-json-field",
+                        )
+                    else:
+                        yield Input(
+                            value=(
+                                ""
+                                if initial_value is None
+                                else str(initial_value)
+                            ),
+                            placeholder=field.get("placeholder", ""),
+                            id=field_id,
+                            classes="template-field",
+                        )
             yield Label("", id="template-form-error")
             with Grid(id="template-form-actions"):
                 yield Button(
@@ -294,6 +336,10 @@ class TemplateFormScreen(ModalScreen[dict | None]):
 
     def on_input_submitted(self, _event: Input.Submitted) -> None:
         self._submit()
+
+    def on_text_area_changed(self, event: TextArea.Changed) -> None:
+        if isinstance(event.text_area, ExpandableTextArea):
+            event.text_area._refresh_dynamic_height()
 
     def action_dismiss_cancel(self) -> None:
         self.dismiss(None)

@@ -450,6 +450,13 @@ object with `id`, `name`, `description`, and a `steps` JSON array; each step
 may include nested `components` objects so protocols, steps, and components
 can be created together from one template-generated popup.
 
+Generated forms should keep submit/cancel actions visible and place fields in
+a scrollable body. Multiline fields, currently JSON text areas, start at a
+compact height. When focused, a multiline field expands to fit its content up
+to the current terminal height cap; if content still exceeds the cap, the
+field keeps its own scroll behavior and the form body remains scrollable. When
+focus leaves the field, it returns to compact height.
+
 Polling refreshes should not visually rebuild unchanged lists. If a service
 snapshot is identical to the current one, the Services list must keep its
 existing rows in place so the selected row does not flash during routine
