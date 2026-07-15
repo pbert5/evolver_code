@@ -561,6 +561,9 @@ Live / Services shows service open/config/restart/pause/stop actions. Actions
 from inactive tabs should be hidden rather than shown as if they apply. Service
 actions must also respect the focused service category; unmanaged services hide
 restart and pause/resume even while the Services tab is focused.
+Switching tabs inside a focused window should focus the active tab's list and
+select the first real row when no row is already selected so the footer reflects
+the active tab's row-scoped actions immediately.
 Inventory protocol/material edit and step add/edit actions open the same
 template-generated modal form path used by inventory creation, prefilled with
 the focused row when editing.

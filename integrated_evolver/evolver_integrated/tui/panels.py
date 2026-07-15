@@ -284,10 +284,19 @@ class LivePanel(Widget, can_focus=True):
 
     def focus_default(self) -> None:
         list_view = self.query_one(self._active_list_selector(), ListView)
+        if list_view.index is None and self._active_items():
+            list_view.index = 0
         _mark_list_selection(list_view)
         list_view.focus()
         self.app.refresh_bindings()
         self._post_current_context()
+
+    def _active_items(self) -> list[dict]:
+        return {
+            "experiments": self._experiments,
+            "evolvers": self._devices,
+            "services": self._services,
+        }.get(self._tc().active, [])
 
     def _active_list_selector(self) -> str:
         return {

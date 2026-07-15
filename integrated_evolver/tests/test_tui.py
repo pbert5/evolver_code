@@ -829,6 +829,48 @@ def test_live_panel_keybindings_follow_active_tab(monkeypatch):
     asyncio.run(run_app())
 
 
+def test_live_services_footer_updates_when_switching_tabs(monkeypatch):
+    from textual.widgets import Footer
+
+    from evolver_integrated.tui.app import EvolverTUI
+    from evolver_integrated.tui.panels import LivePanel
+
+    _stub_tui_client(monkeypatch)
+
+    app = EvolverTUI()
+
+    async def run_app():
+        async with app.run_test() as pilot:
+            await pilot.pause()
+            live = app.query_one(LivePanel)
+            live.update_services([
+                {
+                    "id": "control-plane",
+                    "name": "Control Plane",
+                    "state": "running",
+                    "category": "core",
+                }
+            ])
+
+            await pilot.press("]")
+            await pilot.press("]")
+            await pilot.pause()
+
+            assert app.focused is not None
+            assert app.focused.id == "service-list"
+            assert app.query_one("#service-list").index == 0
+
+            footer_actions = {
+                getattr(child, "action", None)
+                for child in app.query_one(Footer).children
+            }
+            assert "config_item" in footer_actions
+            assert "run_or_restart" in footer_actions
+            assert "pause_or_resume" in footer_actions
+
+    asyncio.run(run_app())
+
+
 def test_live_panel_hides_restart_pause_for_unmanaged_service(monkeypatch):
     from evolver_integrated.tui.app import EvolverTUI
     from evolver_integrated.tui.panels import LivePanel
@@ -962,6 +1004,7 @@ def test_experiment_refresh_only_updates_live_experiments_context(monkeypatch):
             await pilot.pause()
             app._selected_experiment = dict(selected)
             live = app.query_one(LivePanel)
+            rendered.clear()
 
             await pilot.press("]")
             assert app.focused is not None
