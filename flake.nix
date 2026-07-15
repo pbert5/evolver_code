@@ -30,7 +30,7 @@
             text = ''
               set -euo pipefail
               ${workspacePrelude dir}
-              exec nix run ".#${name}" -- "$@"
+              exec nix run "path:.#${name}" -- "$@"
             '';
           };
         in
@@ -48,7 +48,7 @@
             text = ''
               set -euo pipefail
               ${workspacePrelude dir}
-              exec nix flake check "$@"
+              exec nix flake check path:. "$@"
             '';
           };
         in
@@ -98,8 +98,12 @@
 
           "run-control-plane" =
             integratedApp "run-control-plane" "Run the integrated eVOLVER control-plane API.";
+          "run-supervisor" =
+            integratedApp "run-supervisor" "Run the integrated eVOLVER service supervisor.";
           "run-broadcast-ingest" =
             integratedApp "run-broadcast-ingest" "Persist eVOLVER broadcasts as raw data.";
+          "run-tui" = integratedApp "run-tui" "Launch the integrated eVOLVER TUI.";
+          "tui" = integratedApp "tui" "Launch the integrated eVOLVER TUI.";
 
           "run-dpu" = dpuApp "run-dpu" "Run the DPU experiment controller.";
 

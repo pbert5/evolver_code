@@ -6,7 +6,8 @@
   "python.testing.pytestArgs": [
     "--import-mode=importlib",
     "evolver/tests",
-    "evolver-arduino/tests"
+    "evolver-arduino/tests",
+    "integrated_evolver/tests"
   ],
   "python.testing.autoTestDiscoverOnSaveEnabled": true,
   "nixEnvSelector.nixFile": "${workspaceFolder}/flake.nix",

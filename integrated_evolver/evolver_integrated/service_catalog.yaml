@@ -2,7 +2,7 @@ services:
   - id: control-plane
     name: Control Plane
     category: core
-    command: nix run .#run-control-plane -- --supervisor-url http://127.0.0.1:18083
+    command: nix run path:.#run-control-plane -- --supervisor-url http://127.0.0.1:18083
     description: Local control-plane API and lifecycle coordinator.
     autostart: true
   - id: evolver-server
@@ -13,7 +13,7 @@ services:
   - id: broadcast-ingest
     name: Broadcast Ingest
     category: managed
-    command: nix run .#run-broadcast-ingest
+    command: nix run path:.#run-broadcast-ingest
     description: Persist raw eVOLVER broadcasts.
   - id: data-service
     name: Data Service
@@ -23,5 +23,5 @@ services:
   - id: tui
     name: TUI
     category: unmanaged
-    command: nix run .#run-tui
+    command: nix run path:.#run-tui
     description: Operator terminal UI sessions.
