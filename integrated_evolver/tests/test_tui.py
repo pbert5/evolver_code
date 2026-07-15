@@ -295,6 +295,48 @@ def test_tui_architecture_context_and_options_gate_activation():
     assert "activate" in protocol_actions
 
 
+def test_tui_architecture_spells_out_tab_data_rows():
+    path = (
+        Path(__file__).parents[1]
+        / "evolver_integrated"
+        / "tui"
+        / "tui_architecture.json"
+    )
+    architecture = json.loads(path.read_text())
+
+    tabs = []
+    for page in architecture["pages"]:
+        for window in page["windows"]:
+            tabs.extend(window.get("tabs", []))
+
+    assert tabs
+    for tab in tabs:
+        assert tab["data"]["source"]
+        assert tab["data"]["empty_state"]
+        assert tab["data"]["rows"]
+        for row in tab["data"]["rows"]:
+            assert row["field"]
+            assert row["display"]
+
+
+def test_active_rows_are_underlined():
+    from evolver_integrated.tui.panels import _list_item
+
+    item = _list_item("active", active=True)
+    inactive = _list_item("inactive")
+    css = (
+        Path(__file__).parents[1]
+        / "evolver_integrated"
+        / "tui"
+        / "evolver.tcss"
+    ).read_text()
+
+    assert item.has_class("active-row")
+    assert not inactive.has_class("active-row")
+    assert "ListView > ListItem.active-row" in css
+    assert "text-style: underline;" in css
+
+
 def test_evolver_tui_number_keys_focus_left_panels_without_hiding(monkeypatch):
     from evolver_integrated.tui.app import EvolverTUI
 

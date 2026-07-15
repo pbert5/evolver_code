@@ -129,6 +129,13 @@ Shows:
 - Protocol name where available.
 - Start time / last update when available.
 
+Row data:
+- `state`: maps to the state icon and visible state label.
+- `request.name`: primary experiment label, falling back to `id`.
+- `request.metadata.protocol`: protocol name in detail context.
+- `created_at`: creation time in detail context.
+- `runner.state`: runner state in detail context.
+
 Actions:
 - `n`: create new experiment.
 - `r`: run focused experiment; warn if another is running.
@@ -147,9 +154,27 @@ Sketch:
 ╰──────────────────────────────╯
 ```
 
+#### Evolver Units Tab
+
+Shows connected or demo eVOLVER units and assignment state.
+
+Row data:
+- `state`: maps to the active-state icon and visible state label.
+- `name`: primary unit label, falling back to `id`.
+- `role`: unit role in detail context.
+- `devices`: attached device count and device names in detail context.
+
 #### Services Tab
 
 Shows service catalog entries from the supervisor/control-plane service API.
+
+Row data:
+- `state`: maps to the state icon and visible state label.
+- `name`: primary service label, falling back to `id`.
+- `category`: shown beside state as `category/state`.
+- `restart_count`: restart count in detail context.
+- `last_action`: last lifecycle action in detail context.
+- `description`: descriptive text in detail context when present.
 
 State symbols:
 - Running: green hollow circle.
@@ -193,6 +218,26 @@ Tabs:
 - Materials: organisms, media, reagents, samples, waste.
 - Devices: pumps, sensors, miniEvolver units, serial devices, logical roles.
 
+Protocols row data:
+- `name`: primary protocol label.
+- `steps`: displayed as step count.
+- `id`: protocol id in detail context.
+- `description`: descriptive text in detail context when present.
+
+Materials row data:
+- `name`: primary material label.
+- `type`: material type.
+- `id`: material id.
+- `lot`: lot in detail context.
+- `description`: descriptive text in detail context.
+
+Devices row data:
+- `name`: primary device label.
+- `type`: device type.
+- `io_role`: optional visible role suffix.
+- `id`: device id in detail context.
+- `evolver_id`: owning unit in detail context.
+
 Actions:
 - `space` / `enter`: select protocol or inventory item.
 - `/`: fuzzy-search current tab.
@@ -222,6 +267,13 @@ Shows:
 - Step name.
 - Current step when an experiment is running.
 
+Row data:
+- `index`: 1-based step order.
+- `progress`: maps to past/current/future icon.
+- `name`: primary step label.
+- `description`: descriptive text in detail context.
+- `components`: displayed as component count in detail context.
+
 Actions:
 - `/`: future fuzzy-search steps.
 - `enter`: select step and show components/detail.
@@ -246,6 +298,12 @@ Shows:
 - Type.
 - Role or IO role.
 - Binding to physical/logical device when available.
+
+Row data:
+- `enabled`: controls active underline state.
+- `name`: primary component label.
+- `type`: component type.
+- `io_role`: optional visible role suffix.
 
 Actions:
 - `enter`: show component detail in Main.

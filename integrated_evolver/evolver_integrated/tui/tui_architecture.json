@@ -100,6 +100,18 @@
                 "scope": "live.experiments",
                 "item_context": "experiment.focused"
               },
+              "data": {
+                "source": "control_api.list_experiments",
+                "empty_state": "No experiments",
+                "rows": [
+                  {"field": "state", "display": "state icon", "fallback": "?"},
+                  {"field": "request.name", "display": "experiment name", "fallback": "id"},
+                  {"field": "state", "display": "state label", "fallback": "?"},
+                  {"field": "request.metadata.protocol", "display": "protocol name", "fallback": "default", "detail_only": true},
+                  {"field": "created_at", "display": "created time", "fallback": "?", "detail_only": true},
+                  {"field": "runner.state", "display": "runner state", "fallback": "-", "detail_only": true}
+                ]
+              },
               "options": {
                 "opens_form": true
               },
@@ -123,6 +135,17 @@
                 "scope": "live.evolver_units",
                 "item_context": "evolver.focused"
               },
+              "data": {
+                "source": "demo_data.evolver_units until hardware inventory API exists",
+                "empty_state": "No eVOLVER units connected",
+                "rows": [
+                  {"field": "state", "display": "active-state icon", "fallback": "unknown"},
+                  {"field": "name", "display": "unit name", "fallback": "id"},
+                  {"field": "state", "display": "unit state label", "fallback": "unknown"},
+                  {"field": "role", "display": "unit role", "fallback": "-", "detail_only": true},
+                  {"field": "devices", "display": "attached device count and names", "fallback": [], "detail_only": true}
+                ]
+              },
               "keybinds": {
                 "inherits": ["list_keybindings"],
                 "available": [
@@ -140,6 +163,19 @@
               "context": {
                 "scope": "live.services",
                 "item_context": "service.focused"
+              },
+              "data": {
+                "source": "control_api.list_services",
+                "empty_state": "No configured services",
+                "rows": [
+                  {"field": "state", "display": "service state icon", "fallback": "unknown"},
+                  {"field": "name", "display": "service name", "fallback": "id"},
+                  {"field": "category", "display": "service category", "fallback": "?"},
+                  {"field": "state", "display": "service state label", "fallback": "unknown"},
+                  {"field": "restart_count", "display": "restart count", "fallback": 0, "detail_only": true},
+                  {"field": "last_action", "display": "last lifecycle action", "fallback": "-", "detail_only": true},
+                  {"field": "description", "display": "description", "fallback": "", "detail_only": true}
+                ]
               },
               "options": {
                 "opens_form": true
@@ -183,6 +219,16 @@
                 "item_context": "inventory.protocols.focused",
                 "active_context": "inventory.protocols.active"
               },
+              "data": {
+                "source": "demo_data.protocols until inventory API exists",
+                "empty_state": "No protocols - create one first",
+                "rows": [
+                  {"field": "name", "display": "protocol name", "fallback": "?"},
+                  {"field": "steps", "display": "step count", "fallback": []},
+                  {"field": "id", "display": "protocol id", "fallback": "-", "detail_only": true},
+                  {"field": "description", "display": "description", "fallback": "", "detail_only": true}
+                ]
+              },
               "options": {
                 "can_activate_context": true,
                 "opens_form": true
@@ -205,6 +251,17 @@
                 "scope": "inventory.materials",
                 "item_context": "inventory.materials.focused"
               },
+              "data": {
+                "source": "demo_data.materials until inventory API exists",
+                "empty_state": "No materials registered",
+                "rows": [
+                  {"field": "name", "display": "material name", "fallback": "?"},
+                  {"field": "type", "display": "material type", "fallback": "?"},
+                  {"field": "id", "display": "material id", "fallback": ""},
+                  {"field": "lot", "display": "lot", "fallback": "-", "detail_only": true},
+                  {"field": "description", "display": "description", "fallback": "No description.", "detail_only": true}
+                ]
+              },
               "options": {
                 "opens_form": true
               },
@@ -224,6 +281,17 @@
               "context": {
                 "scope": "inventory.devices",
                 "item_context": "inventory.devices.focused"
+              },
+              "data": {
+                "source": "demo_data.devices until inventory API exists",
+                "empty_state": "No devices configured",
+                "rows": [
+                  {"field": "name", "display": "device name", "fallback": "?"},
+                  {"field": "type", "display": "device type", "fallback": "?"},
+                  {"field": "io_role", "display": "I/O role", "fallback": "", "optional": true},
+                  {"field": "id", "display": "device id", "fallback": "-", "detail_only": true},
+                  {"field": "evolver_id", "display": "owning evolver unit", "fallback": "-", "detail_only": true}
+                ]
               },
               "options": {
                 "opens_form": true
@@ -267,7 +335,21 @@
             ]
           },
           "tabs": [
-            {"id": "default", "name": "Steps"}
+            {
+              "id": "default",
+              "name": "Steps",
+              "data": {
+                "source": "inventory.protocols.active.steps",
+                "empty_state": "No steps defined",
+                "rows": [
+                  {"field": "index", "display": "1-based step order", "fallback": "row index"},
+                  {"field": "progress", "display": "completion/current/future icon", "fallback": "future"},
+                  {"field": "name", "display": "step name", "fallback": "stringified step"},
+                  {"field": "description", "display": "description", "fallback": "No step description.", "detail_only": true},
+                  {"field": "components", "display": "component count", "fallback": [], "detail_only": true}
+                ]
+              }
+            }
           ]
         },
         {
@@ -295,7 +377,20 @@
             ]
           },
           "tabs": [
-            {"id": "default", "name": "Components"}
+            {
+              "id": "default",
+              "name": "Components",
+              "data": {
+                "source": "steps.active.components",
+                "empty_state": "No components defined for this step",
+                "rows": [
+                  {"field": "enabled", "display": "enabled/active underline state", "fallback": true},
+                  {"field": "name", "display": "component name", "fallback": "?"},
+                  {"field": "type", "display": "component type", "fallback": ""},
+                  {"field": "io_role", "display": "I/O role", "fallback": "", "optional": true}
+                ]
+              }
+            }
           ]
         }
       ]

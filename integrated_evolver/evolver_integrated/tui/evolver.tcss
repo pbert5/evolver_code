@@ -65,6 +65,7 @@ TabbedContent > Tabs {
 ListView > ListItem.persistent-highlight {
     background: $surface-lighten-1;
     color: $text-muted;
+    text-style: underline;
 }
 
 LivePanel:focus-within ListView > ListItem.persistent-highlight,
@@ -73,6 +74,11 @@ StepsPanel:focus-within ListView > ListItem.persistent-highlight,
 ComponentsPanel:focus-within ListView > ListItem.persistent-highlight {
     background: $surface-lighten-2;
     color: $text;
+    text-style: underline;
+}
+
+ListView > ListItem.active-row {
+    text-style: underline;
 }
 
 /* ── Right panels ─────────────────────────────────────────────────────────── */

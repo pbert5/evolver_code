@@ -111,6 +111,12 @@ def _mark_list_selection(list_view: ListView) -> None:
             continue
         child.set_class(child_idx == idx, "persistent-highlight")
 
+
+def _list_item(label: str, *, active: bool = False) -> ListItem:
+    item = ListItem(Label(label))
+    item.set_class(active, "active-row")
+    return item
+
 # ── [1] Status ────────────────────────────────────────────────────────────────
 
 
@@ -310,7 +316,12 @@ class LivePanel(Widget):
             icon = _STATE_ICONS.get(exp.get("state", ""), "?")
             name = _experiment_name(exp)
             state = exp.get("state", "?")
-            lv.append(ListItem(Label(f" [bold]{icon}[/bold] {name}  [{state}]")))
+            lv.append(
+                _list_item(
+                    f" [bold]{icon}[/bold] {name}  [{state}]",
+                    active=state == "active",
+                )
+            )
         _restore_list_index(lv, experiments, old_key, old_idx)
 
     def update_devices(self, devices: list[dict]) -> None:
@@ -334,7 +345,12 @@ class LivePanel(Widget):
             name = dev.get("name", dev.get("id", "?"))
             state = dev.get("state", "unknown")
             icon = "●" if state == "active" else "○"
-            lv.append(ListItem(Label(f" [bold]{icon}[/bold] {name}  [{state}]")))
+            lv.append(
+                _list_item(
+                    f" [bold]{icon}[/bold] {name}  [{state}]",
+                    active=state == "active",
+                )
+            )
         _restore_list_index(lv, devices, old_key, old_idx)
 
     def update_jobs(self, jobs: list[dict]) -> None:
@@ -350,7 +366,12 @@ class LivePanel(Widget):
             state = job.get("state", "?")
             name = job.get("name", job.get("job_type", "?"))
             icon = "●" if state in ("running", "queued") else "○"
-            lv.append(ListItem(Label(f" [bold]{icon}[/bold] {name}  [{state}]")))
+            lv.append(
+                _list_item(
+                    f" [bold]{icon}[/bold] {name}  [{state}]",
+                    active=state in ("active", "running", "queued"),
+                )
+            )
         _restore_list_index(lv, jobs, None, lv.index)
 
     def update_services(self, services: list[dict]) -> None:
@@ -378,11 +399,10 @@ class LivePanel(Widget):
             name = service.get("name", service.get("id", "?"))
             category = service.get("category", "?")
             lv.append(
-                ListItem(
-                    Label(
-                        f" [bold {color}]{icon}[/bold {color}] {name}"
-                        f"  [{category}/{state}]"
-                    )
+                _list_item(
+                    f" [bold {color}]{icon}[/bold {color}] {name}"
+                    f"  [{category}/{state}]",
+                    active=state == "active",
                 )
             )
         _restore_list_index(lv, services, old_key, old_idx)
@@ -702,7 +722,7 @@ class InventoryPanel(Widget):
         for proto in protocols:
             name = proto.get("name", "?")
             steps = len(proto.get("steps", []))
-            lv.append(ListItem(Label(f" ○ {name}  [{steps} steps]")))
+            lv.append(_list_item(f" ○ {name}  [{steps} steps]"))
         _restore_list_index(lv, protocols, old_key, old_idx)
 
     def update_materials(self, materials: list[dict]) -> None:
@@ -724,7 +744,7 @@ class InventoryPanel(Widget):
             name = mat.get("name", "?")
             mat_type = mat.get("type", "?")
             mat_id = mat.get("id", "")
-            lv.append(ListItem(Label(f" · {name}  [{mat_type}]  {mat_id}")))
+            lv.append(_list_item(f" · {name}  [{mat_type}]  {mat_id}"))
         _restore_list_index(lv, materials, old_key, old_idx)
 
     def update_hw_devices(self, devices: list[dict]) -> None:
@@ -747,7 +767,7 @@ class InventoryPanel(Widget):
             dev_type = dev.get("type", "?")
             role = dev.get("io_role", "")
             suffix = f"  [{role}]" if role else ""
-            lv.append(ListItem(Label(f" · {name}  [{dev_type}]{suffix}")))
+            lv.append(_list_item(f" · {name}  [{dev_type}]{suffix}"))
         _restore_list_index(lv, devices, old_key, old_idx)
 
     def action_add_item(self) -> None:
@@ -842,7 +862,12 @@ class StepsPanel(Widget):
                 if isinstance(step, dict)
                 else str(step)
             )
-            lv.append(ListItem(Label(f" {icon} {i + 1}. {label}")))
+            lv.append(
+                _list_item(
+                    f" {icon} {i + 1}. {label}",
+                    active=i == current_step,
+                )
+            )
         _mark_list_selection(lv)
 
     def on_list_view_highlighted(
@@ -953,7 +978,13 @@ class ComponentsPanel(Widget):
             comp_type = comp.get("type", "") if isinstance(comp, dict) else ""
             role = comp.get("io_role", "") if isinstance(comp, dict) else ""
             suffix = f"  [{role}]" if role else ""
-            lv.append(ListItem(Label(f" · {name}  [{comp_type}]{suffix}")))
+            enabled = comp.get("enabled", True) if isinstance(comp, dict) else True
+            lv.append(
+                _list_item(
+                    f" · {name}  [{comp_type}]{suffix}",
+                    active=enabled,
+                )
+            )
         _mark_list_selection(lv)
 
     def on_list_view_highlighted(self, event: ListView.Highlighted) -> None:
