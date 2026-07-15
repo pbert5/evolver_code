@@ -549,8 +549,11 @@ from inactive tabs should be hidden rather than shown as if they apply.
 The context pane should show the same scope-aware suggestions the operator can
 use in the focused tab. For Live / Services, `enter` starts an inactive focused
 service and `space` opens the service config popup when config details are
-available. Focused rows use a lower-intensity persistent highlight, while
-status symbols are bold so state changes remain readable on highlighted rows.
+available. Service scope/detail views should include a `Suggested` action line
+and a plain `Keybind hints` line with `enter`, `space`, `r`, `p`, `x`, and `/`
+where those actions apply. Focused rows use a lower-intensity persistent
+highlight, while status symbols are bold so state changes remain readable on
+highlighted rows.
 
 ## Open Design Questions
 

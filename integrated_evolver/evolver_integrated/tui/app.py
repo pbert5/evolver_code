@@ -120,10 +120,7 @@ class EvolverTUI(App):
             for exp in exps:
                 if exp.get("id") == sel_id:
                     self._selected_experiment = exp
-                    if (
-                        self.focused is not None
-                        and self.focused.id == "exp-list"
-                    ):
+                    if self._live_experiments_has_focus():
                         self.query_one(MainDisplay).show_experiment(exp)
                     break
 
@@ -382,6 +379,14 @@ class EvolverTUI(App):
             self.query_one(MainDisplay).show_protocol(message.protocol)
         else:
             self.query_one(MainDisplay).show_scope("components")
+
+    def _live_experiments_has_focus(self) -> bool:
+        if self.focused is None or self.focused.id != "exp-list":
+            return False
+        try:
+            return self.query_one(LivePanel)._tc().active == "experiments"
+        except Exception:
+            return False
 
     def action_focus_main(self) -> None:
         self.query_one(MainDisplay).focus_default()

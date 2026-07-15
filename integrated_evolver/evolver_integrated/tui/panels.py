@@ -1102,6 +1102,8 @@ class MainDisplay(Widget, can_focus=True):
                 "Suggested: [1-5] focus window, left/right tabs, [enter] "
                 "start inactive service, [space] config, [r] restart, [p] "
                 "pause/resume, [x] stop, / search.",
+                "Keybind hints: enter start/open, space config, r restart, "
+                "p pause/resume, x stop, / search.",
             ],
             "inventory.protocols": [
                 "[bold][3] Inventory / Protocols[/bold]",
@@ -1219,10 +1221,18 @@ class MainDisplay(Widget, can_focus=True):
                 "Suggested: [space] config, [r] restart, [p] pause/resume, "
                 "[x] stop, / search."
             )
+            hints = (
+                "Keybind hints: space config, r restart, p pause/resume, "
+                "x stop, / search."
+            )
         else:
             suggestions = (
                 "Suggested: [enter] start inactive service, [space] config, "
                 "[r] restart, [x] stop, / search."
+            )
+            hints = (
+                "Keybind hints: enter start, space config, r restart, "
+                "x stop, / search."
             )
         lines = [
             "[bold][2] Live / Services / "
@@ -1236,7 +1246,7 @@ class MainDisplay(Widget, can_focus=True):
         ]
         if service.get("description"):
             lines.extend(["", service["description"]])
-        lines.extend(["", suggestions])
+        lines.extend(["", suggestions, hints])
         self._update(lines)
 
     def show_protocol(self, protocol: dict) -> None:

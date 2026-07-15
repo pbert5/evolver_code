@@ -527,9 +527,9 @@ def test_live_panel_keybindings_follow_active_tab(monkeypatch):
     asyncio.run(run_app())
 
 
-def test_experiment_refresh_does_not_replace_steps_context(monkeypatch):
+def test_experiment_refresh_only_updates_live_experiments_context(monkeypatch):
     from evolver_integrated.tui.app import EvolverTUI
-    from evolver_integrated.tui.panels import MainDisplay
+    from evolver_integrated.tui.panels import LivePanel, MainDisplay
 
     async def noop_start(self):
         return None
@@ -584,18 +584,54 @@ def test_experiment_refresh_does_not_replace_steps_context(monkeypatch):
         async with app.run_test() as pilot:
             await pilot.pause()
             app._selected_experiment = dict(selected)
+            live = app.query_one(LivePanel)
+
+            await pilot.press("]")
+            assert app.focused is not None
+            assert app.focused.id == "evolver-list"
+            await app._refresh_experiments()
+            assert rendered == []
+
+            await pilot.press("]")
+            assert app.focused is not None
+            assert app.focused.id == "service-list"
+            await app._refresh_experiments()
+            assert rendered == []
 
             await pilot.press("4")
             assert app.focused is not None
             assert app.focused.id == "steps-list"
-
             await app._refresh_experiments()
             assert rendered == []
 
-            await pilot.press("2")
+            await pilot.press("5")
+            assert app.focused is not None
+            assert app.focused.id == "comp-list"
+            await app._refresh_experiments()
+            assert rendered == []
+
+            await pilot.press("3")
+            assert app.focused is not None
+            assert app.focused.id == "proto-list"
+            await app._refresh_experiments()
+            assert rendered == []
+
+            await pilot.press("escape")
+            assert app.focused is None
+            await app._refresh_experiments()
+            assert rendered == []
+
+            app.set_focus(app.query_one("#exp-list"))
+            live._tc().active = "services"
             assert app.focused is not None
             assert app.focused.id == "exp-list"
+            await app._refresh_experiments()
+            assert rendered == []
 
+            live._tc().active = "experiments"
+            live.focus_default()
+            assert app.focused is not None
+            assert app.focused.id == "exp-list"
             await app._refresh_experiments()
             assert rendered == ["exp-1"]
 
@@ -658,6 +694,30 @@ def test_escape_clears_focus_without_clearing_highlight(monkeypatch):
             assert selected.has_class("persistent-highlight")
 
     asyncio.run(run_app())
+
+
+def test_service_context_includes_keybind_hints(monkeypatch):
+    from evolver_integrated.tui.panels import MainDisplay
+
+    rendered = []
+
+    def record_update(self, lines):
+        rendered.extend(lines)
+
+    monkeypatch.setattr(MainDisplay, "_update", record_update)
+
+    display = MainDisplay()
+    display.show_service({
+        "id": "control-plane",
+        "name": "Control Plane",
+        "state": "running",
+        "category": "core",
+    })
+
+    assert any(line.startswith("Suggested:") for line in rendered)
+    assert any(line.startswith("Keybind hints:") for line in rendered)
+    assert any("space config" in line for line in rendered)
+    assert any("r restart" in line for line in rendered)
 
 
 def test_live_panel_services_use_requested_status_symbols():
