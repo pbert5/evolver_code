@@ -518,11 +518,95 @@ def test_live_panel_keybindings_follow_active_tab(monkeypatch):
             assert live.check_action("run_or_restart", ()) is False
 
             await pilot.press("]")
+            live.update_services([
+                {
+                    "id": "control-plane",
+                    "name": "Control Plane",
+                    "state": "running",
+                    "category": "core",
+                }
+            ])
+            await pilot.press("down")
             assert live.check_action("new_exp", ()) is False
             assert live.check_action("delete_item", ()) is False
             assert live.check_action("config_item", ()) is True
             assert live.check_action("run_or_restart", ()) is True
             assert live.check_action("pause_or_resume", ()) is True
+
+    asyncio.run(run_app())
+
+
+def test_live_panel_hides_restart_pause_for_unmanaged_service(monkeypatch):
+    from evolver_integrated.tui.app import EvolverTUI
+    from evolver_integrated.tui.panels import LivePanel
+
+    async def noop_start(self):
+        return None
+
+    async def noop_stop(self):
+        return None
+
+    async def empty_dict(self):
+        return {"status": "ok"}
+
+    async def empty_list(self):
+        return []
+
+    monkeypatch.setattr(
+        "evolver_integrated.tui.client.ControlAPIClient.start",
+        noop_start,
+    )
+    monkeypatch.setattr(
+        "evolver_integrated.tui.client.ControlAPIClient.stop",
+        noop_stop,
+    )
+    monkeypatch.setattr(
+        "evolver_integrated.tui.client.ControlAPIClient.health",
+        empty_dict,
+    )
+    monkeypatch.setattr(
+        "evolver_integrated.tui.client.ControlAPIClient.list_experiments",
+        empty_list,
+    )
+    monkeypatch.setattr(
+        "evolver_integrated.tui.client.ControlAPIClient.list_services",
+        empty_list,
+    )
+
+    app = EvolverTUI()
+    service_actions = []
+
+    async def run_app():
+        async with app.run_test() as pilot:
+            await pilot.pause()
+            live = app.query_one(LivePanel)
+            live.update_services([
+                {
+                    "id": "tui",
+                    "name": "TUI",
+                    "state": "running",
+                    "category": "unmanaged",
+                }
+            ])
+
+            await pilot.press("]")
+            await pilot.press("]")
+            await pilot.press("down")
+            assert live.check_action("run_or_restart", ()) is False
+            assert live.check_action("pause_or_resume", ()) is False
+            assert live.check_action("config_item", ()) is True
+
+            def record_action(message):
+                service_actions.append((message.service_id, message.action))
+
+            monkeypatch.setattr(
+                app,
+                "on_live_panel_service_action_requested",
+                record_action,
+            )
+            live.action_run_or_restart()
+            live.action_pause_or_resume()
+            assert service_actions == []
 
     asyncio.run(run_app())
 
@@ -617,6 +701,9 @@ def test_experiment_refresh_only_updates_live_experiments_context(monkeypatch):
             assert rendered == []
 
             await pilot.press("escape")
+            assert app.focused is not None
+            assert app.focused.id == "inv-panel"
+            await pilot.press("escape")
             assert app.focused is None
             await app._refresh_experiments()
             assert rendered == []
@@ -690,6 +777,11 @@ def test_escape_clears_focus_without_clearing_highlight(monkeypatch):
             assert selected.has_class("persistent-highlight")
 
             await pilot.press("escape")
+            assert app.focused is not None
+            assert app.focused.id == "inv-panel"
+            assert selected.has_class("persistent-highlight")
+
+            await pilot.press("escape")
             assert app.focused is None
             assert selected.has_class("persistent-highlight")
 
@@ -718,6 +810,31 @@ def test_service_context_includes_keybind_hints(monkeypatch):
     assert any(line.startswith("Keybind hints:") for line in rendered)
     assert any("space config" in line for line in rendered)
     assert any("r restart" in line for line in rendered)
+
+
+def test_unmanaged_service_context_omits_restart_pause(monkeypatch):
+    from evolver_integrated.tui.panels import MainDisplay
+
+    rendered = []
+
+    def record_update(self, lines):
+        rendered.extend(lines)
+
+    monkeypatch.setattr(MainDisplay, "_update", record_update)
+
+    display = MainDisplay()
+    display.show_service({
+        "id": "tui",
+        "name": "TUI",
+        "state": "running",
+        "category": "unmanaged",
+    })
+
+    joined = "\n".join(rendered)
+    assert "Keybind hints:" in joined
+    assert "space config" in joined
+    assert "r restart" not in joined
+    assert "p pause/resume" not in joined
 
 
 def test_live_panel_services_use_requested_status_symbols():

@@ -408,7 +408,29 @@ class EvolverTUI(App):
         self._show_left_panel("#comp-panel")
 
     def action_clear_focus(self) -> None:
+        if self._focus_containing_window():
+            return
         self.set_focus(None)
+
+    def _focus_containing_window(self) -> bool:
+        focused = self.focused
+        if focused is None:
+            return False
+        window_ids = {
+            "status-panel",
+            "live-panel",
+            "inv-panel",
+            "steps-panel",
+            "comp-panel",
+            "main-display",
+        }
+        for ancestor in focused.ancestors:
+            if ancestor.id in window_ids and getattr(
+                ancestor, "can_focus", False
+            ):
+                self.set_focus(ancestor)
+                return True
+        return False
 
     def action_key_help(self) -> None:
         self.push_screen(

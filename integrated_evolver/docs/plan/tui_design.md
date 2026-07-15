@@ -191,6 +191,9 @@ Actions:
 - `r`: restart service.
 - `enter`: show service detail in Main.
 
+Unmanaged services such as the TUI are informational/control-adjacent entries:
+they must not expose restart or pause/resume keybindings.
+
 Service categories:
 - Core: supervisor/control-plane core.
 - Managed: services the control plane/supervisor should keep alive.
@@ -544,7 +547,13 @@ Footer-visible keybindings must update when a focused window changes tabs.
 Live / Experiments shows experiment actions such as add, run, pause/resume,
 and cancel. Live / Evolver Units shows unit open/config/edit/delete actions.
 Live / Services shows service open/config/restart/pause/stop actions. Actions
-from inactive tabs should be hidden rather than shown as if they apply.
+from inactive tabs should be hidden rather than shown as if they apply. Service
+actions must also respect the focused service category; unmanaged services hide
+restart and pause/resume even while the Services tab is focused.
+
+`escape` unwinds focus one level at a time. From a focused list entry, it moves
+focus back to that window container while preserving the highlighted row as
+durable context. Pressing `escape` again clears focus entirely.
 
 The context pane should show the same scope-aware suggestions the operator can
 use in the focused tab. For Live / Services, `enter` starts an inactive focused

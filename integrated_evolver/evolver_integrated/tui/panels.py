@@ -147,7 +147,7 @@ class StatusPanel(Widget, can_focus=True):
 # ── [2] Live (tabs: Experiments | Evolver Units | Services) ───────────────────
 
 
-class LivePanel(Widget):
+class LivePanel(Widget, can_focus=True):
     BORDER_TITLE = "[2] Live"
 
     _TABS = ["experiments", "evolvers", "services"]
@@ -330,7 +330,14 @@ class LivePanel(Widget):
             active_tab = self._tc().active
         except Exception:
             return True
-        return action in self._TAB_ACTIONS.get(active_tab, set())
+        if action not in self._TAB_ACTIONS.get(active_tab, set()):
+            return False
+        if active_tab == "services" and action in {
+            "pause_or_resume",
+            "run_or_restart",
+        }:
+            return self._focused_service_is_managed()
+        return True
 
     def action_fuzzy_search(self) -> None:
         tc = self._tc()
@@ -510,6 +517,9 @@ class LivePanel(Widget):
             service = self._focused_service()
             if not service:
                 return
+            if not self._service_is_managed(service):
+                self._post_current_context()
+                return
             action = "resume" if service.get("state") == "paused" else "pause"
             self.post_message(
                 self.ServiceActionRequested(service["id"], action)
@@ -536,10 +546,23 @@ class LivePanel(Widget):
             return self._services[idx]
         return None
 
+    def _focused_service_is_managed(self) -> bool:
+        service = self._focused_service()
+        return bool(service and self._service_is_managed(service))
+
+    @staticmethod
+    def _service_is_managed(service: dict) -> bool:
+        category = str(service.get("category", "")).lower()
+        service_id = str(service.get("id", "")).lower()
+        return category != "unmanaged" and service_id != "tui"
+
     def action_run_or_restart(self) -> None:
         if self._tc().active == "services":
             service = self._focused_service()
             if service:
+                if not self._service_is_managed(service):
+                    self._post_current_context()
+                    return
                 self.post_message(
                     self.ServiceActionRequested(service["id"], "restart")
                 )
@@ -575,7 +598,7 @@ class LivePanel(Widget):
 # ── [3] Inventory (tabs: Protocols | Materials | Devices) ─────────────────────
 
 
-class InventoryPanel(Widget):
+class InventoryPanel(Widget, can_focus=True):
     BORDER_TITLE = "[3] Inventory"
 
     _TABS = ["protocols", "materials", "devices"]
@@ -821,7 +844,7 @@ class InventoryPanel(Widget):
 # ── [4] Steps ─────────────────────────────────────────────────────────────────
 
 
-class StepsPanel(Widget):
+class StepsPanel(Widget, can_focus=True):
     BORDER_TITLE = "[4] Steps"
 
     BINDINGS = [
@@ -920,7 +943,7 @@ class StepsPanel(Widget):
 # ── [5] Components ────────────────────────────────────────────────────────────
 
 
-class ComponentsPanel(Widget):
+class ComponentsPanel(Widget, can_focus=True):
     BORDER_TITLE = "[5] Components"
 
     class ComponentSelected(Message):
@@ -1216,7 +1239,11 @@ class MainDisplay(Widget, can_focus=True):
 
     def show_service(self, service: dict) -> None:
         state = str(service.get("state", "unknown")).lower()
-        if state in {"running", "paused"}:
+        managed = LivePanel._service_is_managed(service)
+        if not managed:
+            suggestions = "Suggested: [space] config, / search."
+            hints = "Keybind hints: space config, / search."
+        elif state in {"running", "paused"}:
             suggestions = (
                 "Suggested: [space] config, [r] restart, [p] pause/resume, "
                 "[x] stop, / search."
