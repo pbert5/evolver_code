@@ -362,7 +362,8 @@ existing rows in place so the selected row does not flash during routine
 polling.
 
 The structured TUI contract lives in
-`evolver_integrated/tui/tui_architecture.json`. Demo inventory, evolver units,
+`evolver_integrated/tui/tui_architecture.json`. Its hierarchy is now
+page-first: `pages[] -> windows[] -> tabs[]`. Demo inventory, evolver units,
 protocol templates, component examples, services, and experiments live in
 `evolver_integrated/tui/demo_data.json` and can be loaded with `--demo` at
 startup or `d` at runtime.
@@ -449,18 +450,33 @@ services unless they explicitly depend on it.
 
 ## Keybinding Architecture
 
-The architecture JSON keeps windows in a keyed object by window name, with the
-numeric focus key stored on each window entry. Scoped shortcuts live on the tab
-entry that owns them: `windows.<name>.tabs[].keybinds`. Each tab declares
-inherited global/list bindings, plus any available actions or modifications for
-that tab. This keeps key suggestions aligned with the current window, tab, and
-focused line instead of maintaining a separate tab-keymap table.
+The architecture JSON keeps pages as the top-level UI scope. Each page owns a
+list of windows, and each window may own tabs. Numeric focus keys live on
+window entries; scoped shortcuts live on the window or tab entry that owns
+them: `pages[].windows[].keybinds` and
+`pages[].windows[].tabs[].keybinds`.
+
+Context metadata follows the same inheritance path. A page can define broad
+context, a window can refine it, and a tab can set item-level or active parent
+context such as `inventory.protocols.active` or `steps.active`. Context pane
+content should be derived from the effective focused scope rather than from a
+separate hard-coded context table.
+
+Options also inherit downward. Defaults are false, and higher scopes can enable
+an option for all descendants unless a lower scope overrides it. Keybindings
+can be declared anywhere, but activation-style bindings are only effective
+when the matching option is enabled for the focused scope. For example,
+Protocols enables `can_activate_context`, so `space` activates the focused
+protocol context; Materials does not enable that option, so it should not be
+presented as a set-active action. Components enables `can_toggle_option`, so
+`space` maps to component enablement there. Live / Services enables
+`opens_form`, so `space` opens service config when details are available.
 
 The context pane should show the same scope-aware suggestions the operator can
 use in the focused tab. For Live / Services, `enter` starts an inactive focused
 service and `space` opens the service config popup when config details are
-available. Focused rows use a lower-intensity persistent highlight, while status
-symbols are bold so state changes remain readable on highlighted rows.
+available. Focused rows use a lower-intensity persistent highlight, while
+status symbols are bold so state changes remain readable on highlighted rows.
 
 ## Open Design Questions
 

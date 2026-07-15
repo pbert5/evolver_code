@@ -1,161 +1,306 @@
 {
-  "version": 1,
-  "windows": {
+  "version": 2,
+  "inheritance": {
     "context": {
+      "default": false,
+      "merge": "nearest scope wins; object values merge downward"
+    },
+    "options": {
+      "default": false,
+      "merge": "nearest scope wins; object values merge downward"
+    },
+    "keybinds": {
+      "merge": "inherited groups first, then scope-specific modifications and additions"
+    }
+  },
+  "pages": [
+    {
+      "id": "operational",
       "number": 0,
-      "title": "Context",
-      "role": "scrollable detail pane",
-      "global_key": "0",
-      "shows": [
-        "focused scope overview",
-        "focused item details",
-        "nested parent context for protocol -> step -> component"
-      ]
-    },
-    "status": {
-      "number": 1,
-      "title": "Status",
-      "global_key": "1"
-    },
-    "live": {
-      "number": 2,
-      "title": "Live",
-      "global_key": "2",
-      "tabs": [
+      "name": "Operational Console",
+      "title": "eVOLVER Control",
+      "context": {
+        "scope": "page.operational",
+        "summary": "default always-visible runtime console"
+      },
+      "options": {
+        "can_activate_context": false,
+        "can_toggle_option": false,
+        "opens_form": false
+      },
+      "windows": [
         {
-          "id": "experiments",
+          "id": "context",
+          "number": 0,
+          "name": "Context",
+          "title": "Context",
+          "role": "scrollable detail pane",
+          "global_key": "0",
+          "context": {
+            "scope": "context",
+            "shows": [
+              "focused scope overview",
+              "focused item details",
+              "nested parent context for protocol -> step -> component"
+            ]
+          },
           "keybinds": {
-            "inherits": ["global_keybindings", "list_keybindings"],
+            "inherits": ["global_keybindings"]
+          }
+        },
+        {
+          "id": "status",
+          "number": 1,
+          "name": "Status",
+          "title": "Status",
+          "global_key": "1",
+          "context": {
+            "scope": "status",
+            "shows": ["runtime health", "highest-priority system condition"]
+          },
+          "options": {
+            "jumps_to_recovery_context": true
+          },
+          "keybinds": {
+            "inherits": ["global_keybindings"],
             "available": [
-              {"key": "a", "action": "experiment.create", "label": "Add experiment"},
-              {"key": "enter", "action": "experiment.open", "label": "Open experiment details"},
-              {"key": "r", "action": "experiment.run", "label": "Run focused experiment"},
-              {"key": "p", "action": "experiment.pause_or_resume", "label": "Pause/resume focused experiment"},
-              {"key": "c", "action": "experiment.cancel", "label": "Cancel focused experiment"},
-              {"key": "e", "action": "experiment.edit", "label": "Edit focused experiment"},
-              {"key": "delete", "action": "experiment.delete", "label": "Delete focused experiment"}
+              {
+                "key": "enter",
+                "action": "status.open_recovery_context",
+                "label": "Open relevant recovery context",
+                "enabled_when": "status.options.jumps_to_recovery_context"
+              },
+              {
+                "key": "space",
+                "action": "status.open_recovery_context",
+                "label": "Open relevant recovery context",
+                "enabled_when": "status.options.jumps_to_recovery_context"
+              }
             ]
           }
         },
         {
-          "id": "evolver_units",
+          "id": "live",
+          "number": 2,
+          "name": "Live",
+          "title": "Live",
+          "global_key": "2",
+          "context": {
+            "scope": "live",
+            "shows": ["runtime objects"]
+          },
           "keybinds": {
-            "inherits": ["global_keybindings", "list_keybindings"],
-            "available": [
-              {"key": "a", "action": "evolver.import_or_configure", "label": "Add/import evolver unit"},
-              {"key": "enter", "action": "evolver.open", "label": "Open unit details"},
-              {"key": "space", "action": "evolver.configure", "label": "Open unit config"},
-              {"key": "e", "action": "evolver.edit", "label": "Edit unit"},
-              {"key": "delete", "action": "evolver.delete", "label": "Delete unit"}
-            ]
-          }
+            "inherits": ["global_keybindings", "tab_keybindings"]
+          },
+          "tabs": [
+            {
+              "id": "experiments",
+              "name": "Experiments",
+              "context": {
+                "scope": "live.experiments",
+                "item_context": "experiment.focused"
+              },
+              "options": {
+                "opens_form": true
+              },
+              "keybinds": {
+                "inherits": ["list_keybindings"],
+                "available": [
+                  {"key": "a", "action": "experiment.create", "label": "Add experiment", "enabled_when": "options.opens_form"},
+                  {"key": "enter", "action": "experiment.open", "label": "Open experiment details"},
+                  {"key": "r", "action": "experiment.run", "label": "Run focused experiment"},
+                  {"key": "p", "action": "experiment.pause_or_resume", "label": "Pause/resume focused experiment"},
+                  {"key": "c", "action": "experiment.cancel", "label": "Cancel focused experiment"},
+                  {"key": "e", "action": "experiment.edit", "label": "Edit focused experiment"},
+                  {"key": "delete", "action": "experiment.delete", "label": "Delete focused experiment"}
+                ]
+              }
+            },
+            {
+              "id": "evolver_units",
+              "name": "Evolver Units",
+              "context": {
+                "scope": "live.evolver_units",
+                "item_context": "evolver.focused"
+              },
+              "keybinds": {
+                "inherits": ["list_keybindings"],
+                "available": [
+                  {"key": "a", "action": "evolver.import_or_configure", "label": "Add/import evolver unit"},
+                  {"key": "enter", "action": "evolver.open", "label": "Open unit details"},
+                  {"key": "space", "action": "evolver.configure", "label": "Open unit config", "enabled_when": "focused_item.options.opens_form"},
+                  {"key": "e", "action": "evolver.edit", "label": "Edit unit"},
+                  {"key": "delete", "action": "evolver.delete", "label": "Delete unit"}
+                ]
+              }
+            },
+            {
+              "id": "services",
+              "name": "Services",
+              "context": {
+                "scope": "live.services",
+                "item_context": "service.focused"
+              },
+              "options": {
+                "opens_form": true
+              },
+              "keybinds": {
+                "inherits": ["list_keybindings"],
+                "modifies": [
+                  {"key": "enter", "action": "service.start_if_inactive", "label": "Start inactive service", "enabled_when": "focused_item.state != 'running'"},
+                  {"key": "space", "action": "service.config", "label": "Open service config popup", "enabled_when": "options.opens_form"}
+                ],
+                "available": [
+                  {"key": "r", "action": "service.restart", "label": "Restart focused service"},
+                  {"key": "p", "action": "service.pause_or_resume", "label": "Pause/resume focused service"},
+                  {"key": "s", "action": "service.start", "label": "Start focused service"},
+                  {"key": "x", "action": "service.stop", "label": "Stop focused service"},
+                  {"key": "/", "action": "service.search", "label": "Search services"}
+                ]
+              }
+            }
+          ]
         },
         {
-          "id": "services",
+          "id": "inventory",
+          "number": 3,
+          "name": "Inventory",
+          "title": "Inventory",
+          "global_key": "3",
+          "context": {
+            "scope": "inventory",
+            "shows": ["reusable definitions and configured resources"]
+          },
           "keybinds": {
-            "inherits": ["global_keybindings", "list_keybindings"],
-            "modifies": [
-              {"key": "enter", "action": "service.start_if_inactive", "label": "Start inactive service"},
-              {"key": "space", "action": "service.config", "label": "Open service config popup"}
-            ],
-            "available": [
-              {"key": "r", "action": "service.restart", "label": "Restart focused service"},
-              {"key": "p", "action": "service.pause_or_resume", "label": "Pause/resume focused service"},
-              {"key": "s", "action": "service.start", "label": "Start focused service"},
-              {"key": "x", "action": "service.stop", "label": "Stop focused service"},
-              {"key": "/", "action": "service.search", "label": "Search services"}
-            ]
-          }
-        }
-      ]
-    },
-    "inventory": {
-      "number": 3,
-      "title": "Inventory",
-      "global_key": "3",
-      "tabs": [
-        {
-          "id": "protocols",
-          "keybinds": {
-            "inherits": ["global_keybindings", "list_keybindings"],
-            "available": [
-              {"key": "a", "action": "protocol.create", "label": "Add protocol"},
-              {"key": "space", "action": "protocol.set_active", "label": "Set active protocol context"},
-              {"key": "enter", "action": "protocol.open", "label": "Open protocol"},
-              {"key": "e", "action": "protocol.edit", "label": "Edit protocol"},
-              {"key": "delete", "action": "protocol.delete", "label": "Delete protocol"}
-            ]
-          }
+            "inherits": ["global_keybindings", "tab_keybindings"]
+          },
+          "tabs": [
+            {
+              "id": "protocols",
+              "name": "Protocols",
+              "context": {
+                "scope": "inventory.protocols",
+                "item_context": "inventory.protocols.focused",
+                "active_context": "inventory.protocols.active"
+              },
+              "options": {
+                "can_activate_context": true,
+                "opens_form": true
+              },
+              "keybinds": {
+                "inherits": ["list_keybindings"],
+                "available": [
+                  {"key": "a", "action": "protocol.create", "label": "Add protocol", "enabled_when": "options.opens_form"},
+                  {"key": "space", "action": "activate", "label": "Activate focused protocol context", "enabled_when": "options.can_activate_context"},
+                  {"key": "enter", "action": "protocol.open", "label": "Open protocol"},
+                  {"key": "e", "action": "protocol.edit", "label": "Edit protocol"},
+                  {"key": "delete", "action": "protocol.delete", "label": "Delete protocol"}
+                ]
+              }
+            },
+            {
+              "id": "materials",
+              "name": "Materials",
+              "context": {
+                "scope": "inventory.materials",
+                "item_context": "inventory.materials.focused"
+              },
+              "options": {
+                "opens_form": true
+              },
+              "keybinds": {
+                "inherits": ["list_keybindings"],
+                "available": [
+                  {"key": "a", "action": "material.create", "label": "Add material", "enabled_when": "options.opens_form"},
+                  {"key": "enter", "action": "material.open", "label": "Open material"},
+                  {"key": "e", "action": "material.edit", "label": "Edit material"},
+                  {"key": "delete", "action": "material.delete", "label": "Delete material"}
+                ]
+              }
+            },
+            {
+              "id": "devices",
+              "name": "Devices",
+              "context": {
+                "scope": "inventory.devices",
+                "item_context": "inventory.devices.focused"
+              },
+              "options": {
+                "opens_form": true
+              },
+              "keybinds": {
+                "inherits": ["list_keybindings"],
+                "available": [
+                  {"key": "a", "action": "device.create", "label": "Add device", "enabled_when": "options.opens_form"},
+                  {"key": "u", "action": "device.auto_discover", "label": "Auto discover devices"},
+                  {"key": "enter", "action": "device.open", "label": "Open device"},
+                  {"key": "e", "action": "device.edit", "label": "Edit device"},
+                  {"key": "delete", "action": "device.delete", "label": "Delete device"}
+                ]
+              }
+            }
+          ]
         },
         {
-          "id": "materials",
-          "keybinds": {
-            "inherits": ["global_keybindings", "list_keybindings"],
-            "available": [
-              {"key": "a", "action": "material.create", "label": "Add material"},
-              {"key": "enter", "action": "material.open", "label": "Open material"},
-              {"key": "e", "action": "material.edit", "label": "Edit material"},
-              {"key": "delete", "action": "material.delete", "label": "Delete material"}
-            ]
-          }
-        },
-        {
-          "id": "devices",
-          "keybinds": {
-            "inherits": ["global_keybindings", "list_keybindings"],
-            "available": [
-              {"key": "a", "action": "device.create", "label": "Add device"},
-              {"key": "u", "action": "device.auto_discover", "label": "Auto discover devices"},
-              {"key": "enter", "action": "device.open", "label": "Open device"},
-              {"key": "e", "action": "device.edit", "label": "Edit device"},
-              {"key": "delete", "action": "device.delete", "label": "Delete device"}
-            ]
-          }
-        }
-      ]
-    },
-    "steps": {
-      "number": 4,
-      "title": "Steps",
-      "global_key": "4",
-      "parent_context": "inventory.protocols.active",
-      "tabs": [
-        {
-          "id": "default",
+          "id": "steps",
+          "number": 4,
+          "name": "Steps",
+          "title": "Steps",
+          "global_key": "4",
+          "context": {
+            "scope": "steps",
+            "parent": "inventory.protocols.active",
+            "item_context": "steps.focused",
+            "active_context": "steps.active"
+          },
+          "options": {
+            "can_activate_context": true
+          },
           "keybinds": {
             "inherits": ["global_keybindings", "list_keybindings"],
             "available": [
               {"key": "enter", "action": "step.open", "label": "Open step context"},
+              {"key": "space", "action": "activate", "label": "Activate focused step context", "enabled_when": "options.can_activate_context"},
               {"key": "a", "action": "step.create", "label": "Add step"},
               {"key": "e", "action": "step.edit", "label": "Edit step"},
               {"key": "delete", "action": "step.delete", "label": "Delete step"}
             ]
-          }
-        }
-      ]
-    },
-    "components": {
-      "number": 5,
-      "title": "Components",
-      "global_key": "5",
-      "parent_context": "steps.active",
-      "tabs": [
+          },
+          "tabs": [
+            {"id": "default", "name": "Steps"}
+          ]
+        },
         {
-          "id": "default",
+          "id": "components",
+          "number": 5,
+          "name": "Components",
+          "title": "Components",
+          "global_key": "5",
+          "context": {
+            "scope": "components",
+            "parent": "steps.active",
+            "item_context": "components.focused"
+          },
+          "options": {
+            "can_toggle_option": true
+          },
           "keybinds": {
             "inherits": ["global_keybindings", "list_keybindings"],
             "available": [
-              {"key": "space", "action": "component.toggle_enabled", "label": "Toggle component enabled"},
+              {"key": "space", "action": "component.toggle_enabled", "label": "Toggle component enabled", "enabled_when": "options.can_toggle_option"},
               {"key": "enter", "action": "component.open", "label": "Open component context"},
               {"key": "a", "action": "component.create", "label": "Add component"},
               {"key": "e", "action": "component.edit", "label": "Edit component"},
               {"key": "delete", "action": "component.delete", "label": "Delete component"}
             ]
-          }
+          },
+          "tabs": [
+            {"id": "default", "name": "Components"}
+          ]
         }
       ]
     }
-  },
+  ],
   "global_keybindings": [
     {"key": "0", "action": "focus_context", "description": "Focus context pane for scrolling"},
     {"key": "1-5", "action": "focus_window", "description": "Focus numbered windows"},
@@ -164,13 +309,15 @@
     {"key": "ctrl+c", "action": "dismiss_or_quit", "description": "Dismiss popup first, otherwise exit TUI"},
     {"key": "esc", "action": "clear_focus_or_deactivate", "description": "Clear focus, or deactivate active UI entry"}
   ],
+  "tab_keybindings": [
+    {"key": "left/[", "action": "previous_tab", "description": "Switch to previous tab in the focused window"},
+    {"key": "right/]", "action": "next_tab", "description": "Switch to next tab in the focused window"}
+  ],
   "list_keybindings": [
     {"key": "up/down", "action": "move_focus", "description": "Move transient focus within current list"},
-    {"key": "left/[", "action": "previous_tab", "description": "Switch to previous tab in the focused window"},
-    {"key": "right/]", "action": "next_tab", "description": "Switch to next tab in the focused window"},
-    {"key": "space", "action": "activate", "description": "Set active entry, toggle flag, or select where supported"},
+    {"key": "space", "action": "option_action", "description": "Activate context, toggle flag, or select only when the focused scope enables the relevant option"},
     {"key": "enter", "action": "open", "description": "Open detail popup or form where supported"},
-    {"key": "a", "action": "add", "description": "Add entry for the current tab"},
+    {"key": "a", "action": "add", "description": "Add entry for the current tab when form options are enabled"},
     {"key": "e", "action": "edit", "description": "Edit focused entry"},
     {"key": "delete", "action": "delete", "description": "Delete focused entry"},
     {"key": "/", "action": "search", "description": "Fuzzy search current list"}

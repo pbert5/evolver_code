@@ -522,7 +522,7 @@ class InventoryPanel(Widget):
         Binding("[,left", "prev_tab", "Prev tab", show=False),
         Binding("],right", "next_tab", "Next tab", show=False),
         Binding("/", "fuzzy_search", "Search", show=True),
-        Binding("space", "select_item", "Set active", show=True),
+        Binding("space", "select_item", "Option", show=True),
         Binding("a", "add_item", "Add"),
         Binding("e", "edit_item", "Edit"),
         Binding("delete", "delete_item", "Delete"),
@@ -633,6 +633,9 @@ class InventoryPanel(Widget):
             self.post_message(self.FuzzySearchRequested(items, "devices"))
 
     def action_select_item(self) -> None:
+        if self._tc().active != "protocols":
+            self._post_current_context()
+            return
         self._post_current_context(activate=True)
 
     def on_list_view_selected(self, _event: ListView.Selected) -> None:
@@ -998,25 +1001,31 @@ class MainDisplay(Widget, can_focus=True):
                 "[bold][1] Status[/bold]",
                 "",
                 "System health and operator attention live here.",
-                "Use this window to jump from a degraded condition to the relevant repair scope.",
+                "Use this window to jump from a degraded condition to the "
+                "relevant repair scope.",
                 "",
-                "Suggested: [1-5] focus window, [/] search, [?] key help.",
+                "Suggested: [1-5] focus window, / search, [?] key help.",
             ],
             "live.experiments": [
                 "[bold][2] Live / Experiments[/bold]",
                 "",
                 "Runtime experiment sessions appear here.",
-                "No experiment is selected yet. Use up/down or click an experiment to inspect it.",
+                "No experiment is selected yet. Use up/down or click an "
+                "experiment to inspect it.",
                 "",
-                "Suggested: [1-5] focus window, left/right tabs, [a] add experiment, [/] search, [r] run, [p] pause/resume, [c] cancel.",
+                "Suggested: [1-5] focus window, left/right tabs, [a] add "
+                "experiment, / search, [r] run, [p] pause/resume, [c] "
+                "cancel.",
             ],
             "live.evolvers": [
                 "[bold][2] Live / Evolver Units[/bold]",
                 "",
                 "Connected or demo eVOLVER units appear here.",
-                "Use this scope to inspect unit status, assignment, and available onboard devices.",
+                "Use this scope to inspect unit status, assignment, and "
+                "available onboard devices.",
                 "",
-                "Suggested: [1-5] focus window, left/right tabs, [a] add evolver, [d] load demo data, [/] search.",
+                "Suggested: [1-5] focus window, left/right tabs, [a] add "
+                "evolver, [d] load demo data, / search.",
             ],
             "live.services": [
                 "[bold][2] Live / Services[/bold]",
@@ -1024,42 +1033,52 @@ class MainDisplay(Widget, can_focus=True):
                 "Supervisor-managed services appear here.",
                 "Select a service to inspect lifecycle state and lifecycle controls.",
                 "",
-                "Suggested: [1-5] focus window, left/right tabs, [enter] start inactive service, [space] config, [r] restart, [p] pause/resume, [x] stop, [/] search.",
+                "Suggested: [1-5] focus window, left/right tabs, [enter] "
+                "start inactive service, [space] config, [r] restart, [p] "
+                "pause/resume, [x] stop, / search.",
             ],
             "inventory.protocols": [
                 "[bold][3] Inventory / Protocols[/bold]",
                 "",
-                "Protocols define reusable experiment procedures for the current setup.",
+                "Protocols define reusable experiment procedures for the "
+                "current setup.",
                 "Select a protocol to load its steps and component requirements.",
                 "",
-                "Suggested: [1-5] focus window, left/right tabs, [a] add protocol, [e] edit, [x] delete, [/] search.",
+                "Suggested: [1-5] focus window, left/right tabs, [a] add "
+                "protocol, [e] edit, [x] delete, / search.",
             ],
             "inventory.materials": [
                 "[bold][3] Inventory / Materials[/bold]",
                 "",
-                "Materials describe organisms, media, reagents, samples, waste, and other lab inputs available to this eVOLVER setup.",
+                "Materials describe organisms, media, reagents, samples, "
+                "waste, and other lab inputs available to this eVOLVER setup.",
                 "",
-                "Suggested: [1-5] focus window, left/right tabs, [a] add material, [e] edit, [x] delete, [/] search.",
+                "Suggested: [1-5] focus window, left/right tabs, [a] add "
+                "material, [e] edit, [x] delete, / search.",
             ],
             "inventory.devices": [
                 "[bold][3] Inventory / Devices[/bold]",
                 "",
-                "Devices describe pumps, sensors, vials, and I/O roles available to this eVOLVER setup.",
+                "Devices describe pumps, sensors, vials, and I/O roles "
+                "available to this eVOLVER setup.",
                 "Use discover/import flows to populate hardware-backed entries.",
                 "",
-                "Suggested: [1-5] focus window, left/right tabs, [a] add device, [u] auto discover, [e] edit, [x] delete, [/] search.",
+                "Suggested: [1-5] focus window, left/right tabs, [a] add "
+                "device, [u] auto discover, [e] edit, [x] delete, / search.",
             ],
             "inventory.discover": [
                 "[bold]Auto Discover[/bold]",
                 "",
-                "Future flow: scan attached eVOLVER hardware, choose detected units, import their config, or create demo units.",
+                "Future flow: scan attached eVOLVER hardware, choose "
+                "detected units, import their config, or create demo units.",
                 "",
                 "Suggested: [enter] run discovery, [esc] return focus, [?] key help.",
             ],
             "service.no_config": [
                 "[bold]Service Config[/bold]",
                 "",
-                "The focused service does not currently expose config details in the TUI payload.",
+                "The focused service does not currently expose config details "
+                "in the TUI payload.",
                 "",
                 "Suggested: [enter] start inactive service, [r] restart, [x] stop.",
             ],
@@ -1070,9 +1089,11 @@ class MainDisplay(Widget, can_focus=True):
                 f"[bold]{action.title()} {target.title()}[/bold]",
                 "",
                 "This will open a form-driven popup in the next slice.",
-                "Forms should preserve progress while moving through text fields, checkboxes, and multi-select choices.",
+                "Forms should preserve progress while moving through text "
+                "fields, checkboxes, and multi-select choices.",
                 "",
-                "Suggested: [tab] next field, [shift+tab] previous field, [enter] submit, [ctrl+c] close popup.",
+                "Suggested: [tab] next field, [shift+tab] previous field, "
+                "[enter] submit, [ctrl+c] close popup.",
             ])
             return
         self._update(content.get(scope, ["[bold]Context[/bold]", "", scope]))
@@ -1085,7 +1106,13 @@ class MainDisplay(Widget, can_focus=True):
         protocol = _experiment_protocol(experiment)
         runner = experiment.get("runner") or {}
         icon = _STATE_ICONS.get(state, "?")
-        color = "yellow" if state == "running" else "green" if state == "created" else "red"
+        color = (
+            "yellow"
+            if state == "running"
+            else "green"
+            if state == "created"
+            else "red"
+        )
         lines = [
             f"[bold]Experiment: {name}[/bold]",
             "",
@@ -1122,11 +1149,18 @@ class MainDisplay(Widget, can_focus=True):
     def show_service(self, service: dict) -> None:
         state = str(service.get("state", "unknown")).lower()
         if state in {"running", "paused"}:
-            suggestions = "Suggested: [space] config, [r] restart, [p] pause/resume, [x] stop, [/] search."
+            suggestions = (
+                "Suggested: [space] config, [r] restart, [p] pause/resume, "
+                "[x] stop, / search."
+            )
         else:
-            suggestions = "Suggested: [enter] start inactive service, [space] config, [r] restart, [x] stop, [/] search."
+            suggestions = (
+                "Suggested: [enter] start inactive service, [space] config, "
+                "[r] restart, [x] stop, / search."
+            )
         lines = [
-            f"[bold][2] Live / Services / {service.get('name', service.get('id', '?'))}[/bold]",
+            "[bold][2] Live / Services / "
+            f"{service.get('name', service.get('id', '?'))}[/bold]",
             "",
             f"  ID:        [dim]{service.get('id', '?')}[/dim]",
             f"  State:     {service.get('state', 'unknown')}",
@@ -1173,7 +1207,12 @@ class MainDisplay(Widget, can_focus=True):
             f"  Unit:     {device.get('evolver_id', '-')}",
         ])
 
-    def show_step(self, protocol: Optional[dict], step: dict, step_idx: int) -> None:
+    def show_step(
+        self,
+        protocol: Optional[dict],
+        step: dict,
+        step_idx: int,
+    ) -> None:
         lines: list[str] = []
         if protocol:
             lines.extend([
@@ -1190,7 +1229,12 @@ class MainDisplay(Widget, can_focus=True):
         ])
         self._update(lines)
 
-    def show_component(self, protocol: Optional[dict], step: Optional[dict], component: dict) -> None:
+    def show_component(
+        self,
+        protocol: Optional[dict],
+        step: Optional[dict],
+        component: dict,
+    ) -> None:
         lines: list[str] = []
         if protocol:
             lines.extend([

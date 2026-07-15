@@ -87,7 +87,7 @@ class EvolverTUI(App):
         await self._poll()
         if self._demo_enabled:
             self._apply_demo_static_data()
-        self._show_left_panel("#live-panel")
+        self.call_after_refresh(self._show_left_panel, "#live-panel")
 
     async def on_unmount(self) -> None:
         await self._client.stop()
@@ -445,7 +445,7 @@ class EvolverTUI(App):
             "e edit focused entry in editable list scopes",
             "delete delete focused entry in editable list scopes",
             "enter activate focused row; starts inactive services",
-            "space select/configure focused row; opens service config when available",
+            "space runs the current scope option when enabled",
             "r restart focused service or run selected experiment",
             "p pause/resume supported live entries",
             "x stop/delete supported focused entries",
@@ -473,7 +473,7 @@ class EvolverTUI(App):
         focus_default = getattr(panel, "focus_default", None)
         if callable(focus_default):
             focus_default()
-        else:
+        elif getattr(panel, "can_focus", False):
             panel.focus()
 
 

@@ -1,5 +1,7 @@
 """Tests for the eVOLVER TUI package."""
 import asyncio
+import json
+from pathlib import Path
 
 import pytest
 
@@ -231,6 +233,66 @@ def test_evolver_tui_mounts_without_control_plane(monkeypatch):
             assert app.query_one("#cmd-log") is not None
 
     asyncio.run(run_app())
+
+
+def test_tui_architecture_uses_pages_before_windows():
+    path = (
+        Path(__file__).parents[1]
+        / "evolver_integrated"
+        / "tui"
+        / "tui_architecture.json"
+    )
+    architecture = json.loads(path.read_text())
+
+    assert architecture["version"] == 2
+    assert isinstance(architecture["pages"], list)
+    assert "windows" not in architecture
+
+    page = architecture["pages"][0]
+    assert page["id"] == "operational"
+    window_ids = [window["id"] for window in page["windows"]]
+    assert window_ids == [
+        "context",
+        "status",
+        "live",
+        "inventory",
+        "steps",
+        "components",
+    ]
+
+
+def test_tui_architecture_context_and_options_gate_activation():
+    path = (
+        Path(__file__).parents[1]
+        / "evolver_integrated"
+        / "tui"
+        / "tui_architecture.json"
+    )
+    architecture = json.loads(path.read_text())
+
+    page = architecture["pages"][0]
+    inventory = next(
+        window for window in page["windows"] if window["id"] == "inventory"
+    )
+    protocols = next(
+        tab for tab in inventory["tabs"] if tab["id"] == "protocols"
+    )
+    materials = next(
+        tab for tab in inventory["tabs"] if tab["id"] == "materials"
+    )
+
+    assert protocols["context"]["active_context"] == (
+        "inventory.protocols.active"
+    )
+    assert protocols["options"]["can_activate_context"] is True
+    assert "can_activate_context" not in materials["options"]
+
+    protocol_actions = [
+        action["action"]
+        for action in protocols["keybinds"]["available"]
+    ]
+    assert "protocol.set_active" not in protocol_actions
+    assert "activate" in protocol_actions
 
 
 def test_evolver_tui_number_keys_focus_left_panels_without_hiding(monkeypatch):
