@@ -633,6 +633,11 @@ class InventoryPanel(Widget, can_focus=True):
             self.scope = scope
             super().__init__()
 
+    class CreateRequested(Message):
+        def __init__(self, scope: str) -> None:
+            self.scope = scope
+            super().__init__()
+
     class FuzzySearchRequested(Message):
         def __init__(self, items: list, context: str) -> None:
             self.items = items
@@ -783,6 +788,9 @@ class InventoryPanel(Widget, can_focus=True):
             lv.append(_list_item(f" ○ {name}  [{steps} steps]"))
         _restore_list_index(lv, protocols, old_key, old_idx)
 
+    def add_protocol(self, protocol: dict) -> None:
+        self.update_protocols([*self._protocols, protocol])
+
     def update_materials(self, materials: list[dict]) -> None:
         lv = self.query_one("#mat-list", ListView)
         old_idx = lv.index
@@ -804,6 +812,9 @@ class InventoryPanel(Widget, can_focus=True):
             mat_id = mat.get("id", "")
             lv.append(_list_item(f" · {name}  [{mat_type}]  {mat_id}"))
         _restore_list_index(lv, materials, old_key, old_idx)
+
+    def add_material(self, material: dict) -> None:
+        self.update_materials([*self._materials, material])
 
     def update_hw_devices(self, devices: list[dict]) -> None:
         lv = self.query_one("#dev-list", ListView)
@@ -829,7 +840,7 @@ class InventoryPanel(Widget, can_focus=True):
         _restore_list_index(lv, devices, old_key, old_idx)
 
     def action_add_item(self) -> None:
-        self.post_message(self.ScopeFocused(f"add.{self._tc().active}"))
+        self.post_message(self.CreateRequested(self._tc().active))
 
     def action_edit_item(self) -> None:
         self.post_message(self.ScopeFocused(f"edit.{self._tc().active}"))

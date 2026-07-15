@@ -428,6 +428,14 @@ The persisted JSON stores are expected to keep protocols, materials, devices,
 eVOLVER units, and experiments in clean object shapes that the architecture
 contract can reference directly.
 
+Inventory creation forms are generated from JSON templates in
+`evolver_integrated/tui/form_templates.json`. The first supported templates are
+`material` and `protocol`. Material forms create a flat JSON object with
+`id`, `name`, `type`, `lot`, and `description`. Protocol forms create a JSON
+object with `id`, `name`, `description`, and a `steps` JSON array; each step
+may include nested `components` objects so protocols, steps, and components
+can be created together from one template-generated popup.
+
 Polling refreshes should not visually rebuild unchanged lists. If a service
 snapshot is identical to the current one, the Services list must keep its
 existing rows in place so the selected row does not flash during routine

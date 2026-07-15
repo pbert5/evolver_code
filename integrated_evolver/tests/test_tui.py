@@ -47,10 +47,14 @@ def test_screens_module_imports():
         ConfirmScreen,
         FuzzySearchScreen,
         NewExperimentScreen,
+        TemplateFormScreen,
+        record_from_template,
     )
     assert ConfirmScreen is not None
     assert NewExperimentScreen is not None
     assert FuzzySearchScreen is not None
+    assert TemplateFormScreen is not None
+    assert callable(record_from_template)
 
 
 def test_app_module_imports():
@@ -361,6 +365,58 @@ def test_tui_architecture_spells_out_tab_data_rows():
             assert row["display"]
 
 
+def test_form_templates_create_material_and_protocol_records():
+    from evolver_integrated.tui.screens import record_from_template
+
+    path = (
+        Path(__file__).parents[1]
+        / "evolver_integrated"
+        / "tui"
+        / "form_templates.json"
+    )
+    templates = json.loads(path.read_text())
+
+    material = record_from_template(
+        templates["material"],
+        {
+            "name": "LB medium",
+            "type": "growth_medium",
+            "lot": "demo",
+            "description": "Broth",
+        },
+    )
+    assert material == {
+        "id": "lb-medium",
+        "name": "LB medium",
+        "type": "growth_medium",
+        "lot": "demo",
+        "description": "Broth",
+    }
+
+    protocol = record_from_template(
+        templates["protocol"],
+        {
+            "name": "Batch Growth",
+            "description": "Simple growth run",
+            "steps": json.dumps([
+                {
+                    "name": "grow",
+                    "components": [
+                        {
+                            "name": "media pump",
+                            "type": "pump",
+                            "enabled": True,
+                        }
+                    ],
+                }
+            ]),
+        },
+    )
+    assert protocol["id"] == "batch-growth"
+    assert protocol["steps"][0]["name"] == "grow"
+    assert protocol["steps"][0]["components"][0]["enabled"] is True
+
+
 def test_only_emphasized_rows_are_underlined():
     from evolver_integrated.tui.panels import _list_item
 
@@ -459,6 +515,74 @@ def test_evolver_tui_number_keys_focus_left_panels_without_hiding(monkeypatch):
             await pilot.press("1")
             assert app.focused is not None
             assert app.focused.id == "status-panel"
+
+    asyncio.run(run_app())
+
+
+def test_inventory_add_uses_template_form(monkeypatch):
+    from evolver_integrated.tui.app import EvolverTUI
+
+    async def noop_start(self):
+        return None
+
+    async def noop_stop(self):
+        return None
+
+    async def empty_dict(self):
+        return {"status": "ok"}
+
+    async def empty_list(self):
+        return []
+
+    monkeypatch.setattr(
+        "evolver_integrated.tui.client.ControlAPIClient.start",
+        noop_start,
+    )
+    monkeypatch.setattr(
+        "evolver_integrated.tui.client.ControlAPIClient.stop",
+        noop_stop,
+    )
+    monkeypatch.setattr(
+        "evolver_integrated.tui.client.ControlAPIClient.health",
+        empty_dict,
+    )
+    monkeypatch.setattr(
+        "evolver_integrated.tui.client.ControlAPIClient.list_experiments",
+        empty_list,
+    )
+    monkeypatch.setattr(
+        "evolver_integrated.tui.client.ControlAPIClient.list_services",
+        empty_list,
+    )
+
+    app = EvolverTUI()
+    pushed_titles = []
+
+    def fake_push_screen(screen, callback=None, *args, **kwargs):
+        pushed_titles.append(screen._template["title"])
+        if callback is not None:
+            callback({
+                "id": "mat-test",
+                "name": "Test material",
+                "type": "reagent",
+            })
+
+    monkeypatch.setattr(app, "push_screen", fake_push_screen)
+
+    async def run_app():
+        async with app.run_test() as pilot:
+            await pilot.pause()
+            await pilot.press("3")
+            await pilot.press("]")
+            assert app.focused is not None
+            assert app.focused.id == "mat-list"
+
+            await pilot.press("a")
+            await pilot.pause()
+
+            assert pushed_titles == ["New Material"]
+            material_list = app.query_one("#mat-list")
+            assert len(material_list.children) == 1
 
     asyncio.run(run_app())
 

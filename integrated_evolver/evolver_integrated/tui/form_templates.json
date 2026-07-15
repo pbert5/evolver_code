@@ -1,0 +1,96 @@
+{
+  "material": {
+    "title": "New Material",
+    "submit_label": "Create material",
+    "fields": [
+      {
+        "id": "id",
+        "label": "ID",
+        "path": "id",
+        "kind": "text",
+        "placeholder": "mat-lb",
+        "auto_id_from": "name"
+      },
+      {
+        "id": "name",
+        "label": "Name",
+        "path": "name",
+        "kind": "text",
+        "required": true,
+        "placeholder": "LB medium"
+      },
+      {
+        "id": "type",
+        "label": "Type",
+        "path": "type",
+        "kind": "text",
+        "required": true,
+        "placeholder": "growth_medium"
+      },
+      {
+        "id": "lot",
+        "label": "Lot",
+        "path": "lot",
+        "kind": "text",
+        "placeholder": "demo"
+      },
+      {
+        "id": "description",
+        "label": "Description",
+        "path": "description",
+        "kind": "text",
+        "placeholder": "Optional notes"
+      }
+    ]
+  },
+  "protocol": {
+    "title": "New Protocol",
+    "submit_label": "Create protocol",
+    "fields": [
+      {
+        "id": "id",
+        "label": "ID",
+        "path": "id",
+        "kind": "text",
+        "placeholder": "turbidostat-demo",
+        "auto_id_from": "name"
+      },
+      {
+        "id": "name",
+        "label": "Name",
+        "path": "name",
+        "kind": "text",
+        "required": true,
+        "placeholder": "turbidostat-demo"
+      },
+      {
+        "id": "description",
+        "label": "Description",
+        "path": "description",
+        "kind": "text",
+        "placeholder": "Maintain cultures near target OD"
+      },
+      {
+        "id": "steps",
+        "label": "Steps JSON",
+        "path": "steps",
+        "kind": "json",
+        "required": true,
+        "default": [
+          {
+            "name": "inoculate",
+            "description": "Load starting culture and growth medium.",
+            "components": [
+              {
+                "name": "starting culture",
+                "type": "organism",
+                "io_role": "sample",
+                "enabled": true
+              }
+            ]
+          }
+        ]
+      }
+    ]
+  }
+}

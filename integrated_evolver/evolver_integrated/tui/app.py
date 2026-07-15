@@ -2,6 +2,7 @@
 from __future__ import annotations
 
 import argparse
+import json
 from datetime import datetime
 from pathlib import Path
 from typing import Optional
@@ -20,7 +21,12 @@ from .panels import (
     StepsPanel,
     StatusPanel,
 )
-from .screens import ConfirmScreen, FuzzySearchScreen, NewExperimentScreen
+from .screens import (
+    ConfirmScreen,
+    FuzzySearchScreen,
+    NewExperimentScreen,
+    TemplateFormScreen,
+)
 
 
 class EvolverTUI(App):
@@ -64,6 +70,7 @@ class EvolverTUI(App):
         self._selected_experiment: Optional[dict] = None
         self._demo_enabled = demo
         self._demo_data: dict = {}
+        self._form_templates = self._load_form_templates()
 
     def compose(self) -> ComposeResult:
         yield Header(show_clock=True)
@@ -327,6 +334,37 @@ class EvolverTUI(App):
     ) -> None:
         self.query_one(MainDisplay).show_scope(message.scope)
 
+    def on_inventory_panel_create_requested(
+        self, message: InventoryPanel.CreateRequested
+    ) -> None:
+        template_key = {
+            "protocols": "protocol",
+            "materials": "material",
+        }.get(message.scope)
+        if template_key is None:
+            self.query_one(MainDisplay).show_scope(f"add.{message.scope}")
+            return
+        template = self._form_templates.get(template_key)
+        if not template:
+            self._log(f"[red]ERROR missing template: {template_key}[/red]")
+            return
+
+        def on_result(record: dict | None) -> None:
+            if not record:
+                return
+            inventory = self.query_one(InventoryPanel)
+            if template_key == "protocol":
+                inventory.add_protocol(record)
+                self.query_one(StepsPanel).load_protocol(record)
+                self.query_one(ComponentsPanel).load_protocol(record)
+                self.query_one(MainDisplay).show_protocol(record)
+            elif template_key == "material":
+                inventory.add_material(record)
+                self.query_one(MainDisplay).show_material(record)
+            self._log(f"CREATE {template_key} {record.get('id', '?')}")
+
+        self.push_screen(TemplateFormScreen(template), on_result)
+
     def on_inventory_panel_fuzzy_search_requested(
         self, message: InventoryPanel.FuzzySearchRequested
     ) -> None:
@@ -454,10 +492,17 @@ class EvolverTUI(App):
             return
         path = Path(__file__).parent / "demo_data.json"
         try:
-            self._demo_data = __import__("json").loads(path.read_text())
+            self._demo_data = json.loads(path.read_text())
         except OSError as exc:
             self._demo_data = {}
             self._log(f"[red]ERROR demo data: {exc}[/red]")
+
+    def _load_form_templates(self) -> dict:
+        path = Path(__file__).parent / "form_templates.json"
+        try:
+            return json.loads(path.read_text())
+        except (OSError, json.JSONDecodeError):
+            return {}
 
     def _apply_demo_static_data(self) -> None:
         if not self._demo_data:
