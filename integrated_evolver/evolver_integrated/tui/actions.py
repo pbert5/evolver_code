@@ -2,11 +2,12 @@
 from __future__ import annotations
 
 import json
-from pathlib import Path
+
+from .data_paths import tui_data_path
 
 
 def load_action_catalog() -> dict:
-    path = Path(__file__).parent / "actions.json"
+    path = tui_data_path("actions.json")
     try:
         return json.loads(path.read_text())
     except (OSError, json.JSONDecodeError):

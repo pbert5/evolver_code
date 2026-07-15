@@ -23,9 +23,6 @@ integrated-evolver-tui = "evolver_integrated.tui.app:main"
 [tool.setuptools.packages.find]
 include = ["evolver_integrated*"]
 
-[tool.setuptools.package-data]
-"evolver_integrated.tui" = ["*.json"]
-
 [tool.pytest.ini_options]
 testpaths = ["tests"]
 pythonpath = ["."]

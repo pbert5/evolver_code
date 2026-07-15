@@ -61,8 +61,22 @@ classes:
         range: ActionExecution
         multivalued: true
         inlined_as_list: true
+      run_readiness:
+        range: RunReadiness
+        inlined: true
       documentation_ids:
         range: DocumentationReference
+        multivalued: true
+
+  RunReadiness:
+    description: Whether a configured experiment can be launched.
+    attributes:
+      can_run:
+        range: boolean
+        required: true
+      blocking_placeholder_ids:
+        multivalued: true
+      unresolved_required_fields:
         multivalued: true
 
   DeviceAssignment:

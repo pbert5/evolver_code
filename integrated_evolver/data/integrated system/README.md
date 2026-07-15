@@ -30,6 +30,11 @@ algorithms, forms, and contextual documentation references.
   overrides, calibration references, and action logs.
 - `schemas/interface.yaml`: documentation references and generated form
   definitions.
+- `objects/software/tui/*.json`: project-owned TUI runtime object fixtures,
+  action catalogs, form templates, and architecture metadata.
+- `objects/demo_integrated_system.json`: canonical schema-shaped
+  `IntegratedEvolverSystem` demo object graph used as the source for projected
+  UI demo data.
 
 ## Modeling Direction
 

@@ -4,10 +4,96 @@ import json
 from pathlib import Path
 
 import pytest
+import yaml
 
 textual = pytest.importorskip(
     "textual", reason="textual not installed"
 )
+
+
+def _tui_data_path(filename):
+    from evolver_integrated.tui.data_paths import tui_data_path
+
+    return tui_data_path(filename)
+
+
+def _integrated_object_path(filename):
+    from evolver_integrated.tui.data_paths import integrated_object_path
+
+    return integrated_object_path(filename)
+
+
+def _demo_system():
+    return json.loads(
+        _integrated_object_path("demo_integrated_system.json").read_text()
+    )
+
+
+def _projected_demo_data():
+    from evolver_integrated.tui.demo_projection import (
+        project_integrated_system_for_tui,
+    )
+
+    return project_integrated_system_for_tui(_demo_system())
+
+
+def _schema_bundle():
+    schema_root = Path(__file__).parents[1] / "data" / "integrated system"
+    paths = [
+        schema_root / "integrated_evolver_schema.linkml.yml",
+        *sorted((schema_root / "schemas").glob("*.yaml")),
+    ]
+    bundle = {"classes": {}, "enums": {}}
+    for path in paths:
+        schema = yaml.safe_load(path.read_text())
+        bundle["classes"].update(schema.get("classes", {}))
+        bundle["enums"].update(schema.get("enums", {}))
+    return bundle
+
+
+def _class_attributes(bundle, class_name):
+    cls = bundle["classes"][class_name]
+    attrs = {}
+    parent = cls.get("is_a")
+    if parent:
+        attrs.update(_class_attributes(bundle, parent))
+    attrs.update(cls.get("attributes", {}))
+    return attrs
+
+
+def _validate_schema_object(bundle, class_name, record, path):
+    attrs = _class_attributes(bundle, class_name)
+    unknown = sorted(set(record) - set(attrs))
+    assert not unknown, f"{path} has unknown schema fields: {unknown}"
+
+    for attr_name, attr_schema in attrs.items():
+        attr_schema = attr_schema or {}
+        attr_path = f"{path}.{attr_name}"
+        if attr_schema.get("required"):
+            assert attr_name in record, f"{attr_path} is required"
+        if attr_name not in record:
+            continue
+        value = record[attr_name]
+        range_name = attr_schema.get("range")
+        if range_name in bundle["enums"]:
+            allowed = set(
+                bundle["enums"][range_name]["permissible_values"]
+            )
+            values = value if attr_schema.get("multivalued") else [value]
+            for candidate in values:
+                assert candidate in allowed, (
+                    f"{attr_path}={candidate!r} is not in {range_name}"
+                )
+        elif (
+            range_name in bundle["classes"]
+            and attr_schema.get("inlined_as_list")
+        ):
+            for idx, item in enumerate(value):
+                _validate_schema_object(
+                    bundle, range_name, item, f"{attr_path}[{idx}]"
+                )
+        elif range_name in bundle["classes"] and attr_schema.get("inlined"):
+            _validate_schema_object(bundle, range_name, value, attr_path)
 
 
 def _stub_tui_client(monkeypatch):
@@ -275,12 +361,7 @@ def test_evolver_tui_mounts_without_control_plane(monkeypatch):
 
 
 def test_tui_architecture_uses_pages_before_windows():
-    path = (
-        Path(__file__).parents[1]
-        / "evolver_integrated"
-        / "tui"
-        / "tui_architecture.json"
-    )
+    path = _tui_data_path("tui_architecture.json")
     architecture = json.loads(path.read_text())
 
     assert architecture["version"] == 2
@@ -301,12 +382,7 @@ def test_tui_architecture_uses_pages_before_windows():
 
 
 def test_tui_architecture_uses_focus_context_inheritance():
-    path = (
-        Path(__file__).parents[1]
-        / "evolver_integrated"
-        / "tui"
-        / "tui_architecture.json"
-    )
+    path = _tui_data_path("tui_architecture.json")
     architecture = json.loads(path.read_text())
 
     page = architecture["pages"][0]
@@ -377,12 +453,7 @@ def test_tui_architecture_uses_focus_context_inheritance():
 
 
 def test_tui_architecture_spells_out_tab_data_rows():
-    path = (
-        Path(__file__).parents[1]
-        / "evolver_integrated"
-        / "tui"
-        / "tui_architecture.json"
-    )
+    path = _tui_data_path("tui_architecture.json")
     architecture = json.loads(path.read_text())
 
     tabs = []
@@ -409,12 +480,7 @@ def test_tui_actions_json_drives_live_action_catalog():
     )
     from evolver_integrated.tui.panels import LivePanel
 
-    path = (
-        Path(__file__).parents[1]
-        / "evolver_integrated"
-        / "tui"
-        / "actions.json"
-    )
+    path = _tui_data_path("actions.json")
     actions = json.loads(path.read_text())
 
     assert actions["version"] == 1
@@ -436,12 +502,7 @@ def test_tui_actions_json_drives_live_action_catalog():
 def test_form_templates_create_material_and_protocol_records():
     from evolver_integrated.tui.screens import record_from_template
 
-    path = (
-        Path(__file__).parents[1]
-        / "evolver_integrated"
-        / "tui"
-        / "form_templates.json"
-    )
+    path = _tui_data_path("form_templates.json")
     templates = json.loads(path.read_text())
 
     material = record_from_template(
@@ -497,6 +558,125 @@ def test_form_templates_create_material_and_protocol_records():
         "description": "Collect sample",
         "components": [],
     }
+
+
+def test_demo_integrated_system_matches_owned_schema():
+    system = _demo_system()
+    bundle = _schema_bundle()
+
+    _validate_schema_object(
+        bundle,
+        "IntegratedEvolverSystem",
+        system,
+        "demo_integrated_system",
+    )
+
+
+def test_demo_data_contains_core_experiment_protocol_objects():
+    demo_data = _projected_demo_data()
+
+    protocols = {
+        protocol["protocol_type"]: protocol
+        for protocol in demo_data["protocols"]
+    }
+
+    assert set(protocols) == {
+        "growth_curve",
+        "chemostat",
+        "turbidostat",
+    }
+    assert protocols["growth_curve"]["algorithm"]["input_parameters"] == [
+        "optical_density",
+        "temperature",
+        "stir_rate",
+    ]
+    assert "dilution_rate" in protocols["chemostat"]["algorithm"][
+        "input_parameters"
+    ]
+    assert any(
+        equation["name"] == "pump_period_seconds"
+        for equation in protocols["chemostat"]["algorithm"]["equations"]
+    )
+    assert any(
+        equation["name"] == "dilution_time_seconds"
+        for equation in protocols["turbidostat"]["algorithm"]["equations"]
+    )
+
+    for protocol in protocols.values():
+        assert protocol["steps"]
+        assert "algorithm_type" in protocol["algorithm"]
+        for step in protocol["steps"]:
+            assert step["components"]
+
+
+def test_demo_data_marks_material_placeholders_as_run_blocking():
+    demo_data = _projected_demo_data()
+
+    materials = {material["id"]: material for material in demo_data["materials"]}
+    placeholder_ids = {
+        material_id
+        for material_id, material in materials.items()
+        if material.get("placeholder")
+    }
+
+    assert placeholder_ids == {
+        "mat-placeholder-growth-media",
+        "mat-placeholder-limiting-media",
+        "mat-placeholder-starting-culture",
+        "sample-placeholder-starting-culture",
+    }
+    for material_id in placeholder_ids:
+        material = materials[material_id]
+        assert material["run_blocking"] is True
+        assert material["required_fields"]
+
+    growth_curve = next(
+        protocol
+        for protocol in demo_data["protocols"]
+        if protocol["protocol_type"] == "growth_curve"
+    )
+    assert set(growth_curve["run_blocking_placeholders"]) == {
+        "mat-placeholder-growth-media",
+        "mat-placeholder-starting-culture",
+    }
+    assert demo_data["experiments"][0]["run_readiness"] == {
+        "can_run": False,
+        "blocking_placeholder_ids": [
+            "mat-placeholder-growth-media",
+            "mat-placeholder-starting-culture",
+            "sample-placeholder-starting-culture",
+        ],
+        "unresolved_required_fields": [
+            "growth_medium",
+            "supply_volume",
+            "organism",
+            "strain_name",
+            "density",
+        ],
+    }
+
+
+def test_demo_data_models_virtual_min_evolver_components():
+    demo_data = _projected_demo_data()
+
+    mini = demo_data["evolver_units"][0]
+    devices = demo_data["devices"]
+    pumps = [device for device in devices if device["type"] == "pump"]
+    sleeves = [
+        device for device in devices if device["type"] == "smart_sleeve"
+    ]
+
+    assert mini["unit_type"] == "min_evolver"
+    assert mini["command_interface"] == "stubbed_virtual_evolver"
+    assert len(sleeves) == 2
+    assert len(pumps) == 6
+    assert {pump["action_stub"] for pump in pumps} == {
+        "virtual_evolver.run_pump"
+    }
+    assert all(
+        device["evolver_id"] == "virtual-mini-evolver-1"
+        for device in devices
+    )
 
 
 def test_only_emphasized_rows_are_underlined():

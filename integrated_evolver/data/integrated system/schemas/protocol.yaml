@@ -76,6 +76,15 @@ classes:
         inlined: true
       formula:
         description: Human-readable expression for derived requirements.
+      placeholder_allowed:
+        range: boolean
+        description: True when a protocol template may declare only the required class of material.
+      user_fill_required:
+        range: boolean
+        description: True when the user must bind a concrete material/sample during experiment setup.
+      run_blocking_if_unresolved:
+        range: boolean
+        description: True when an unresolved placeholder must prevent experiment execution.
 
   InitialCondition:
     description: Starting setpoint or starting state for an experiment.

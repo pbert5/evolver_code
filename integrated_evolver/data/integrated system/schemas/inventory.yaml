@@ -88,6 +88,15 @@ classes:
         inlined: true
       contamination_risk:
         range: SeverityEnum
+      placeholder:
+        range: boolean
+        description: True when this material is a protocol/setup placeholder rather than a concrete inventory item.
+      run_blocking_if_unresolved:
+        range: boolean
+        description: True when experiments using this placeholder cannot run until the user supplies a concrete material.
+      required_setup_fields:
+        multivalued: true
+        description: Fields the user must fill when resolving this placeholder.
 
   ResearchSample:
     is_a: NamedEntity
@@ -117,6 +126,15 @@ classes:
         inlined: true
       required_conditions:
         multivalued: true
+      placeholder:
+        range: boolean
+        description: True when this sample is a protocol/setup placeholder rather than a concrete biological sample.
+      run_blocking_if_unresolved:
+        range: boolean
+        description: True when experiments using this placeholder cannot run until the user supplies a concrete sample.
+      required_setup_fields:
+        multivalued: true
+        description: Fields the user must fill when resolving this placeholder.
 
   Recipe:
     is_a: NamedEntity

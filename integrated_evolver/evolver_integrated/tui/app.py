@@ -16,6 +16,8 @@ from textual.widgets import Footer, Header, RichLog
 
 from .actions import key_help_lines
 from .client import APIError, ControlAPIClient
+from .data_paths import integrated_object_path, tui_data_path
+from .demo_projection import project_integrated_system_for_tui
 from .panels import (
     ComponentsPanel,
     InventoryPanel,
@@ -595,15 +597,16 @@ class EvolverTUI(App):
     def _load_demo_fixture(self) -> None:
         if self._demo_data:
             return
-        path = Path(__file__).parent / "demo_data.json"
+        path = integrated_object_path("demo_integrated_system.json")
         try:
-            self._demo_data = json.loads(path.read_text())
+            system = json.loads(path.read_text())
+            self._demo_data = project_integrated_system_for_tui(system)
         except OSError as exc:
             self._demo_data = {}
             self._log(f"[red]ERROR demo data: {exc}[/red]")
 
     def _load_form_templates(self) -> dict:
-        path = Path(__file__).parent / "form_templates.json"
+        path = tui_data_path("form_templates.json")
         try:
             return json.loads(path.read_text())
         except (OSError, json.JSONDecodeError):

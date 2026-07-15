@@ -452,6 +452,6 @@
   "demo_mode": {
     "startup_flag": "--demo",
     "runtime_key": "d",
-    "data_file": "demo_data.json"
+    "data_file": "../../demo_integrated_system.json"
   }
 }
