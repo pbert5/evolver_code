@@ -280,6 +280,9 @@ Row data:
 Actions:
 - `/`: future fuzzy-search steps.
 - `enter`: select step and show components/detail.
+- `a`: add step using the step form popup.
+- `e`: edit focused step using the step form popup.
+- `delete`: future delete focused step.
 
 Sketch:
 
@@ -558,6 +561,9 @@ Live / Services shows service open/config/restart/pause/stop actions. Actions
 from inactive tabs should be hidden rather than shown as if they apply. Service
 actions must also respect the focused service category; unmanaged services hide
 restart and pause/resume even while the Services tab is focused.
+Inventory protocol/material edit and step add/edit actions open the same
+template-generated modal form path used by inventory creation, prefilled with
+the focused row when editing.
 
 `escape` unwinds focus one level at a time. From a focused list entry, it moves
 focus back to that window container while preserving the highlighted row as

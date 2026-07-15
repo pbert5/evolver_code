@@ -2,6 +2,7 @@
 from __future__ import annotations
 
 import argparse
+from copy import deepcopy
 import json
 from datetime import datetime
 from pathlib import Path
@@ -365,6 +366,39 @@ class EvolverTUI(App):
 
         self.push_screen(TemplateFormScreen(template), on_result)
 
+    def on_inventory_panel_edit_requested(
+        self, message: InventoryPanel.EditRequested
+    ) -> None:
+        template_key = {
+            "protocols": "protocol",
+            "materials": "material",
+        }.get(message.scope)
+        if template_key is None:
+            self.query_one(MainDisplay).show_scope(f"edit.{message.scope}")
+            return
+        template = self._form_template_for_edit(template_key)
+        if not template:
+            self._log(f"[red]ERROR missing template: {template_key}[/red]")
+            return
+
+        def on_result(record: dict | None) -> None:
+            if not record:
+                return
+            inventory = self.query_one(InventoryPanel)
+            if template_key == "protocol":
+                inventory.replace_protocol(message.item_idx, record)
+                self.query_one(StepsPanel).load_protocol(record)
+                self.query_one(ComponentsPanel).load_protocol(record)
+                self.query_one(MainDisplay).show_protocol(record)
+            elif template_key == "material":
+                inventory.replace_material(message.item_idx, record)
+                self.query_one(MainDisplay).show_material(record)
+            self._log(f"EDIT {template_key} {record.get('id', '?')}")
+
+        self.push_screen(
+            TemplateFormScreen(template, message.item), on_result
+        )
+
     def on_inventory_panel_fuzzy_search_requested(
         self, message: InventoryPanel.FuzzySearchRequested
     ) -> None:
@@ -394,6 +428,59 @@ class EvolverTUI(App):
             self.query_one(MainDisplay).show_protocol(message.protocol)
         else:
             self.query_one(MainDisplay).show_scope("steps")
+
+    def on_steps_panel_create_requested(
+        self, message: StepsPanel.CreateRequested
+    ) -> None:
+        if not message.protocol:
+            self.query_one(MainDisplay).show_scope("add.steps")
+            return
+        template = self._form_templates.get("step")
+        if not template:
+            self._log("[red]ERROR missing template: step[/red]")
+            return
+
+        def on_result(record: dict | None) -> None:
+            if not record:
+                return
+            steps = self.query_one(StepsPanel)
+            steps.add_step(record)
+            self.query_one(ComponentsPanel).load_step(
+                record, len(message.protocol.get("steps", [])) - 1
+            )
+            self.query_one(MainDisplay).show_step(
+                message.protocol,
+                record,
+                len(message.protocol.get("steps", [])) - 1,
+            )
+            self._log(f"CREATE step {record.get('name', '?')}")
+
+        self.push_screen(TemplateFormScreen(template), on_result)
+
+    def on_steps_panel_edit_requested(
+        self, message: StepsPanel.EditRequested
+    ) -> None:
+        template = self._form_template_for_edit("step")
+        if not template:
+            self._log("[red]ERROR missing template: step[/red]")
+            return
+
+        def on_result(record: dict | None) -> None:
+            if not record:
+                return
+            steps = self.query_one(StepsPanel)
+            steps.replace_step(message.step_idx, record)
+            self.query_one(ComponentsPanel).load_step(
+                record, message.step_idx
+            )
+            self.query_one(MainDisplay).show_step(
+                message.protocol,
+                record,
+                message.step_idx,
+            )
+            self._log(f"EDIT step {record.get('name', '?')}")
+
+        self.push_screen(TemplateFormScreen(template, message.step), on_result)
 
     def on_components_panel_component_selected(
         self, message: ComponentsPanel.ComponentSelected
@@ -503,6 +590,22 @@ class EvolverTUI(App):
             return json.loads(path.read_text())
         except (OSError, json.JSONDecodeError):
             return {}
+
+    def _form_template_for_edit(self, template_key: str) -> dict:
+        template = self._form_templates.get(template_key)
+        if not template:
+            return {}
+        edit_template = deepcopy(template)
+        edit_template["title"] = template.get("title", "Edit").replace(
+            "New ", "Edit ", 1
+        )
+        submit = template.get("submit_label", "Save")
+        edit_template["submit_label"] = (
+            submit.replace("Create ", "Save ", 1)
+            if submit.startswith("Create ")
+            else "Save"
+        )
+        return edit_template
 
     def _apply_demo_static_data(self) -> None:
         if not self._demo_data:

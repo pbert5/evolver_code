@@ -638,6 +638,13 @@ class InventoryPanel(Widget, can_focus=True):
             self.scope = scope
             super().__init__()
 
+    class EditRequested(Message):
+        def __init__(self, scope: str, item: dict, item_idx: int) -> None:
+            self.scope = scope
+            self.item = item
+            self.item_idx = item_idx
+            super().__init__()
+
     class FuzzySearchRequested(Message):
         def __init__(self, items: list, context: str) -> None:
             self.items = items
@@ -671,9 +678,18 @@ class InventoryPanel(Widget, can_focus=True):
 
     def focus_default(self) -> None:
         list_view = self.query_one(self._active_list_selector(), ListView)
+        if list_view.index is None and self._active_items():
+            list_view.index = 0
         _mark_list_selection(list_view)
         list_view.focus()
         self._post_current_context()
+
+    def _active_items(self) -> list[dict]:
+        return {
+            "protocols": self._protocols,
+            "materials": self._materials,
+            "devices": self._hw_devices,
+        }.get(self._tc().active, [])
 
     def _active_list_selector(self) -> str:
         return {
@@ -791,6 +807,12 @@ class InventoryPanel(Widget, can_focus=True):
     def add_protocol(self, protocol: dict) -> None:
         self.update_protocols([*self._protocols, protocol])
 
+    def replace_protocol(self, idx: int, protocol: dict) -> None:
+        protocols = list(self._protocols)
+        if 0 <= idx < len(protocols):
+            protocols[idx] = protocol
+            self.update_protocols(protocols)
+
     def update_materials(self, materials: list[dict]) -> None:
         lv = self.query_one("#mat-list", ListView)
         old_idx = lv.index
@@ -815,6 +837,12 @@ class InventoryPanel(Widget, can_focus=True):
 
     def add_material(self, material: dict) -> None:
         self.update_materials([*self._materials, material])
+
+    def replace_material(self, idx: int, material: dict) -> None:
+        materials = list(self._materials)
+        if 0 <= idx < len(materials):
+            materials[idx] = material
+            self.update_materials(materials)
 
     def update_hw_devices(self, devices: list[dict]) -> None:
         lv = self.query_one("#dev-list", ListView)
@@ -843,7 +871,25 @@ class InventoryPanel(Widget, can_focus=True):
         self.post_message(self.CreateRequested(self._tc().active))
 
     def action_edit_item(self) -> None:
-        self.post_message(self.ScopeFocused(f"edit.{self._tc().active}"))
+        tc = self._tc()
+        idx: Optional[int]
+        item: Optional[dict]
+        if tc.active == "protocols":
+            idx = self.query_one("#proto-list", ListView).index
+            item = self._focused_protocol()
+        elif tc.active == "materials":
+            idx = self.query_one("#mat-list", ListView).index
+            item = self._focused_material()
+        elif tc.active == "devices":
+            idx = self.query_one("#dev-list", ListView).index
+            item = self._focused_device()
+        else:
+            idx = None
+            item = None
+        if item is not None and idx is not None:
+            self.post_message(self.EditRequested(tc.active, item, idx))
+        else:
+            self.post_message(self.ScopeFocused(f"edit.{tc.active}"))
 
     def action_delete_item(self) -> None:
         self.post_message(self.ScopeFocused(f"delete.{self._tc().active}"))
@@ -860,6 +906,10 @@ class StepsPanel(Widget, can_focus=True):
 
     BINDINGS = [
         Binding("/", "fuzzy_search", "Search", show=False),
+        Binding("enter", "open_item", "Open"),
+        Binding("a", "add_item", "Add"),
+        Binding("e", "edit_item", "Edit"),
+        Binding("delete", "delete_item", "Delete"),
     ]
 
     class StepSelected(Message):
@@ -872,6 +922,23 @@ class StepsPanel(Widget, can_focus=True):
     class ScopeFocused(Message):
         def __init__(self, protocol: Optional[dict]) -> None:
             self.protocol = protocol
+            super().__init__()
+
+    class CreateRequested(Message):
+        def __init__(self, protocol: Optional[dict]) -> None:
+            self.protocol = protocol
+            super().__init__()
+
+    class EditRequested(Message):
+        def __init__(
+            self,
+            protocol: Optional[dict],
+            step: dict,
+            step_idx: int,
+        ) -> None:
+            self.protocol = protocol
+            self.step = step
+            self.step_idx = step_idx
             super().__init__()
 
     def __init__(self, **kwargs) -> None:
@@ -890,6 +957,8 @@ class StepsPanel(Widget, can_focus=True):
 
     def focus_default(self) -> None:
         list_view = self.query_one("#steps-list", ListView)
+        if list_view.index is None and self._steps:
+            list_view.index = 0
         _mark_list_selection(list_view)
         list_view.focus()
         idx = list_view.index
@@ -939,6 +1008,33 @@ class StepsPanel(Widget, can_focus=True):
             )
         _mark_list_selection(lv)
 
+    def add_step(self, step: dict) -> None:
+        if self._protocol is None:
+            return
+        steps = [*self._steps, step]
+        self._protocol["steps"] = steps
+        self.load_protocol(self._protocol, self._current_step)
+        lv = self.query_one("#steps-list", ListView)
+        lv.index = len(steps) - 1
+        _mark_list_selection(lv)
+
+    def replace_step(self, idx: int, step: dict) -> None:
+        if self._protocol is None or not 0 <= idx < len(self._steps):
+            return
+        steps = list(self._steps)
+        steps[idx] = step
+        self._protocol["steps"] = steps
+        self.load_protocol(self._protocol, self._current_step)
+        lv = self.query_one("#steps-list", ListView)
+        lv.index = idx
+        _mark_list_selection(lv)
+
+    def _focused_step(self) -> tuple[dict, int] | tuple[None, None]:
+        idx = self.query_one("#steps-list", ListView).index
+        if idx is not None and 0 <= idx < len(self._steps):
+            return self._steps[idx], idx
+        return None, None
+
     def on_list_view_highlighted(
         self, event: ListView.Highlighted
     ) -> None:
@@ -946,6 +1042,24 @@ class StepsPanel(Widget, can_focus=True):
         idx = self.query_one("#steps-list", ListView).index
         if idx is not None and 0 <= idx < len(self._steps):
             self.post_message(self.StepSelected(self._protocol, self._steps[idx], idx))
+
+    def action_open_item(self) -> None:
+        step, idx = self._focused_step()
+        if step is not None and idx is not None:
+            self.post_message(self.StepSelected(self._protocol, step, idx))
+
+    def action_add_item(self) -> None:
+        self.post_message(self.CreateRequested(self._protocol))
+
+    def action_edit_item(self) -> None:
+        step, idx = self._focused_step()
+        if step is not None and idx is not None:
+            self.post_message(self.EditRequested(self._protocol, step, idx))
+        else:
+            self.post_message(self.ScopeFocused(self._protocol))
+
+    def action_delete_item(self) -> None:
+        self.post_message(self.ScopeFocused(self._protocol))
 
     def action_fuzzy_search(self) -> None:
         pass

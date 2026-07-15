@@ -10,6 +10,41 @@ textual = pytest.importorskip(
 )
 
 
+def _stub_tui_client(monkeypatch):
+    async def noop_start(self):
+        return None
+
+    async def noop_stop(self):
+        return None
+
+    async def empty_dict(self):
+        return {"status": "ok"}
+
+    async def empty_list(self):
+        return []
+
+    monkeypatch.setattr(
+        "evolver_integrated.tui.client.ControlAPIClient.start",
+        noop_start,
+    )
+    monkeypatch.setattr(
+        "evolver_integrated.tui.client.ControlAPIClient.stop",
+        noop_stop,
+    )
+    monkeypatch.setattr(
+        "evolver_integrated.tui.client.ControlAPIClient.health",
+        empty_dict,
+    )
+    monkeypatch.setattr(
+        "evolver_integrated.tui.client.ControlAPIClient.list_experiments",
+        empty_list,
+    )
+    monkeypatch.setattr(
+        "evolver_integrated.tui.client.ControlAPIClient.list_services",
+        empty_list,
+    )
+
+
 # ── import smoke tests ────────────────────────────────────────────────────────
 
 
@@ -416,6 +451,20 @@ def test_form_templates_create_material_and_protocol_records():
     assert protocol["steps"][0]["name"] == "grow"
     assert protocol["steps"][0]["components"][0]["enabled"] is True
 
+    step = record_from_template(
+        templates["step"],
+        {
+            "name": "sample",
+            "description": "Collect sample",
+            "components": json.dumps([]),
+        },
+    )
+    assert step == {
+        "name": "sample",
+        "description": "Collect sample",
+        "components": [],
+    }
+
 
 def test_only_emphasized_rows_are_underlined():
     from evolver_integrated.tui.panels import _list_item
@@ -583,6 +632,126 @@ def test_inventory_add_uses_template_form(monkeypatch):
             assert pushed_titles == ["New Material"]
             material_list = app.query_one("#mat-list")
             assert len(material_list.children) == 1
+
+    asyncio.run(run_app())
+
+
+def test_inventory_protocol_edit_uses_template_form(monkeypatch):
+    from evolver_integrated.tui.app import EvolverTUI
+    from evolver_integrated.tui.panels import InventoryPanel
+
+    _stub_tui_client(monkeypatch)
+
+    app = EvolverTUI()
+    pushed = []
+
+    def fake_push_screen(screen, callback=None, *args, **kwargs):
+        pushed.append((screen._template["title"], screen._initial_record))
+        if callback is not None:
+            callback({
+                "id": "batch-growth",
+                "name": "Batch Growth Edited",
+                "description": "Edited",
+                "steps": [],
+            })
+
+    monkeypatch.setattr(app, "push_screen", fake_push_screen)
+
+    async def run_app():
+        async with app.run_test() as pilot:
+            await pilot.pause()
+            inventory = app.query_one(InventoryPanel)
+            inventory.update_protocols([
+                {
+                    "id": "batch-growth",
+                    "name": "Batch Growth",
+                    "description": "Simple run",
+                    "steps": [],
+                }
+            ])
+
+            await pilot.press("3")
+            assert app.focused is not None
+            assert app.focused.id == "proto-list"
+
+            await pilot.press("e")
+            await pilot.pause()
+
+            assert pushed == [
+                (
+                    "Edit Protocol",
+                    {
+                        "id": "batch-growth",
+                        "name": "Batch Growth",
+                        "description": "Simple run",
+                        "steps": [],
+                    },
+                )
+            ]
+            assert inventory._protocols[0]["name"] == "Batch Growth Edited"
+
+    asyncio.run(run_app())
+
+
+def test_steps_add_and_edit_use_template_forms(monkeypatch):
+    from evolver_integrated.tui.app import EvolverTUI
+    from evolver_integrated.tui.panels import StepsPanel
+
+    _stub_tui_client(monkeypatch)
+
+    app = EvolverTUI()
+    pushed_titles = []
+
+    def fake_push_screen(screen, callback=None, *args, **kwargs):
+        pushed_titles.append(screen._template["title"])
+        if callback is None:
+            return
+        if screen._template["title"] == "New Step":
+            callback({
+                "name": "sample",
+                "description": "Take a sample",
+                "components": [],
+            })
+        else:
+            callback({
+                "name": "grow edited",
+                "description": "Grow culture longer",
+                "components": [],
+            })
+
+    monkeypatch.setattr(app, "push_screen", fake_push_screen)
+
+    async def run_app():
+        async with app.run_test() as pilot:
+            await pilot.pause()
+            protocol = {
+                "id": "batch-growth",
+                "name": "Batch Growth",
+                "steps": [
+                    {
+                        "name": "grow",
+                        "description": "Grow culture",
+                        "components": [],
+                    }
+                ],
+            }
+            steps = app.query_one(StepsPanel)
+            steps.load_protocol(protocol)
+
+            await pilot.press("4")
+            assert app.focused is not None
+            assert app.focused.id == "steps-list"
+
+            await pilot.press("a")
+            await pilot.pause()
+            assert protocol["steps"][1]["name"] == "sample"
+
+            steps.query_one("#steps-list").index = 0
+            await pilot.press("e")
+            await pilot.pause()
+
+            assert pushed_titles == ["New Step", "Edit Step"]
+            assert protocol["steps"][0]["name"] == "grow edited"
 
     asyncio.run(run_app())
 

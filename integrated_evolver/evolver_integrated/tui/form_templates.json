@@ -92,5 +92,34 @@
         ]
       }
     ]
+  },
+  "step": {
+    "title": "New Step",
+    "submit_label": "Create step",
+    "fields": [
+      {
+        "id": "name",
+        "label": "Name",
+        "path": "name",
+        "kind": "text",
+        "required": true,
+        "placeholder": "grow to target OD"
+      },
+      {
+        "id": "description",
+        "label": "Description",
+        "path": "description",
+        "kind": "text",
+        "placeholder": "Optional step notes"
+      },
+      {
+        "id": "components",
+        "label": "Components JSON",
+        "path": "components",
+        "kind": "json",
+        "required": true,
+        "default": []
+      }
+    ]
   }
 }

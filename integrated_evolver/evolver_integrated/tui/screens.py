@@ -18,6 +18,15 @@ def _slug(value: str) -> str:
     return slug or "untitled"
 
 
+def _get_path(record: dict, path: str) -> Any:
+    target: Any = record
+    for part in path.split("."):
+        if not isinstance(target, dict) or part not in target:
+            return None
+        target = target[part]
+    return target
+
+
 def _set_path(record: dict, path: str, value: Any) -> None:
     parts = path.split(".")
     target = record
@@ -206,9 +215,14 @@ class TemplateFormScreen(ModalScreen[dict | None]):
     }
     """
 
-    def __init__(self, template: dict) -> None:
+    def __init__(
+        self,
+        template: dict,
+        initial_record: dict | None = None,
+    ) -> None:
         super().__init__()
         self._template = template
+        self._initial_record = initial_record or {}
 
     def compose(self) -> ComposeResult:
         with Vertical(id="template-form-dialog"):
@@ -222,8 +236,16 @@ class TemplateFormScreen(ModalScreen[dict | None]):
                     classes="template-field-label",
                 )
                 field_id = f"template-field-{field['id']}"
+                initial_value = _get_path(
+                    self._initial_record, field["path"]
+                )
                 if field.get("kind") == "json":
-                    text = json.dumps(field.get("default", []), indent=2)
+                    value = (
+                        initial_value
+                        if initial_value is not None
+                        else field.get("default", [])
+                    )
+                    text = json.dumps(value, indent=2)
                     yield TextArea(
                         text,
                         language="json",
@@ -232,6 +254,7 @@ class TemplateFormScreen(ModalScreen[dict | None]):
                     )
                 else:
                     yield Input(
+                        value="" if initial_value is None else str(initial_value),
                         placeholder=field.get("placeholder", ""),
                         id=field_id,
                         classes="template-field",
