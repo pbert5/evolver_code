@@ -540,6 +540,12 @@ Services enables `opens_form`, so `space` opens service config when details
 are available. Protocol and step context do not use `space`; highlighting a
 row is sufficient.
 
+Footer-visible keybindings must update when a focused window changes tabs.
+Live / Experiments shows experiment actions such as add, run, pause/resume,
+and cancel. Live / Evolver Units shows unit open/config/edit/delete actions.
+Live / Services shows service open/config/restart/pause/stop actions. Actions
+from inactive tabs should be hidden rather than shown as if they apply.
+
 The context pane should show the same scope-aware suggestions the operator can
 use in the focused tab. For Live / Services, `enter` starts an inactive focused
 service and `space` opens the service config popup when config details are

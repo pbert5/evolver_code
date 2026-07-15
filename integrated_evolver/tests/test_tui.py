@@ -463,6 +463,203 @@ def test_evolver_tui_number_keys_focus_left_panels_without_hiding(monkeypatch):
     asyncio.run(run_app())
 
 
+def test_live_panel_keybindings_follow_active_tab(monkeypatch):
+    from evolver_integrated.tui.app import EvolverTUI
+    from evolver_integrated.tui.panels import LivePanel
+
+    async def noop_start(self):
+        return None
+
+    async def noop_stop(self):
+        return None
+
+    async def empty_dict(self):
+        return {"status": "ok"}
+
+    async def empty_list(self):
+        return []
+
+    monkeypatch.setattr(
+        "evolver_integrated.tui.client.ControlAPIClient.start",
+        noop_start,
+    )
+    monkeypatch.setattr(
+        "evolver_integrated.tui.client.ControlAPIClient.stop",
+        noop_stop,
+    )
+    monkeypatch.setattr(
+        "evolver_integrated.tui.client.ControlAPIClient.health",
+        empty_dict,
+    )
+    monkeypatch.setattr(
+        "evolver_integrated.tui.client.ControlAPIClient.list_experiments",
+        empty_list,
+    )
+    monkeypatch.setattr(
+        "evolver_integrated.tui.client.ControlAPIClient.list_services",
+        empty_list,
+    )
+
+    app = EvolverTUI()
+
+    async def run_app():
+        async with app.run_test() as pilot:
+            await pilot.pause()
+            live = app.query_one(LivePanel)
+
+            assert live.check_action("new_exp", ()) is True
+            assert live.check_action("cancel_exp", ()) is True
+            assert live.check_action("config_item", ()) is False
+
+            await pilot.press("]")
+            assert live.check_action("new_exp", ()) is False
+            assert live.check_action("cancel_exp", ()) is False
+            assert live.check_action("config_item", ()) is True
+            assert live.check_action("run_or_restart", ()) is False
+
+            await pilot.press("]")
+            assert live.check_action("new_exp", ()) is False
+            assert live.check_action("delete_item", ()) is False
+            assert live.check_action("config_item", ()) is True
+            assert live.check_action("run_or_restart", ()) is True
+            assert live.check_action("pause_or_resume", ()) is True
+
+    asyncio.run(run_app())
+
+
+def test_experiment_refresh_does_not_replace_steps_context(monkeypatch):
+    from evolver_integrated.tui.app import EvolverTUI
+    from evolver_integrated.tui.panels import MainDisplay
+
+    async def noop_start(self):
+        return None
+
+    async def noop_stop(self):
+        return None
+
+    async def empty_dict(self):
+        return {"status": "ok"}
+
+    async def empty_list(self):
+        return []
+
+    selected = {"id": "exp-1", "state": "running"}
+
+    async def experiments(self):
+        return [selected]
+
+    monkeypatch.setattr(
+        "evolver_integrated.tui.client.ControlAPIClient.start",
+        noop_start,
+    )
+    monkeypatch.setattr(
+        "evolver_integrated.tui.client.ControlAPIClient.stop",
+        noop_stop,
+    )
+    monkeypatch.setattr(
+        "evolver_integrated.tui.client.ControlAPIClient.health",
+        empty_dict,
+    )
+    monkeypatch.setattr(
+        "evolver_integrated.tui.client.ControlAPIClient.list_services",
+        empty_list,
+    )
+    monkeypatch.setattr(
+        "evolver_integrated.tui.client.ControlAPIClient.list_experiments",
+        experiments,
+    )
+
+    rendered = []
+    original_show_experiment = MainDisplay.show_experiment
+
+    def record_show_experiment(self, experiment):
+        rendered.append(experiment["id"])
+        original_show_experiment(self, experiment)
+
+    monkeypatch.setattr(MainDisplay, "show_experiment", record_show_experiment)
+
+    app = EvolverTUI()
+
+    async def run_app():
+        async with app.run_test() as pilot:
+            await pilot.pause()
+            app._selected_experiment = dict(selected)
+
+            await pilot.press("4")
+            assert app.focused is not None
+            assert app.focused.id == "steps-list"
+
+            await app._refresh_experiments()
+            assert rendered == []
+
+            await pilot.press("2")
+            assert app.focused is not None
+            assert app.focused.id == "exp-list"
+
+            await app._refresh_experiments()
+            assert rendered == ["exp-1"]
+
+    asyncio.run(run_app())
+
+
+def test_escape_clears_focus_without_clearing_highlight(monkeypatch):
+    from evolver_integrated.tui.app import EvolverTUI
+
+    async def noop_start(self):
+        return None
+
+    async def noop_stop(self):
+        return None
+
+    async def empty_dict(self):
+        return {"status": "ok"}
+
+    async def empty_list(self):
+        return []
+
+    monkeypatch.setattr(
+        "evolver_integrated.tui.client.ControlAPIClient.start",
+        noop_start,
+    )
+    monkeypatch.setattr(
+        "evolver_integrated.tui.client.ControlAPIClient.stop",
+        noop_stop,
+    )
+    monkeypatch.setattr(
+        "evolver_integrated.tui.client.ControlAPIClient.health",
+        empty_dict,
+    )
+    monkeypatch.setattr(
+        "evolver_integrated.tui.client.ControlAPIClient.list_experiments",
+        empty_list,
+    )
+    monkeypatch.setattr(
+        "evolver_integrated.tui.client.ControlAPIClient.list_services",
+        empty_list,
+    )
+
+    app = EvolverTUI()
+
+    async def run_app():
+        async with app.run_test() as pilot:
+            await pilot.pause()
+            await pilot.press("3")
+            assert app.focused is not None
+            assert app.focused.id == "proto-list"
+            await pilot.press("down")
+
+            list_view = app.query_one("#proto-list")
+            selected = list_view.highlighted_child
+            assert selected is not None
+            assert selected.has_class("persistent-highlight")
+
+            await pilot.press("escape")
+            assert app.focused is None
+            assert selected.has_class("persistent-highlight")
+
+    asyncio.run(run_app())
+
+
 def test_live_panel_services_use_requested_status_symbols():
     from evolver_integrated.tui.panels import _SERVICE_STATE_DISPLAY
 

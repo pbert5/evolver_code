@@ -49,6 +49,7 @@ class EvolverTUI(App):
             show=False,
             priority=True,
         ),
+        Binding("escape", "clear_focus", "Clear focus", show=False),
         Binding("d", "load_demo_data", "Demo", show=False),
     ]
 
@@ -119,7 +120,11 @@ class EvolverTUI(App):
             for exp in exps:
                 if exp.get("id") == sel_id:
                     self._selected_experiment = exp
-                    self.query_one(MainDisplay).show_experiment(exp)
+                    if (
+                        self.focused is not None
+                        and self.focused.id == "exp-list"
+                    ):
+                        self.query_one(MainDisplay).show_experiment(exp)
                     break
 
     async def _refresh_services(self) -> None:
@@ -397,6 +402,9 @@ class EvolverTUI(App):
     def action_focus_components(self) -> None:
         self._show_left_panel("#comp-panel")
 
+    def action_clear_focus(self) -> None:
+        self.set_focus(None)
+
     def action_key_help(self) -> None:
         self.push_screen(
             FuzzySearchScreen(self._available_key_help(), "keybindings")
@@ -451,7 +459,7 @@ class EvolverTUI(App):
             "x stop/delete supported focused entries",
             "d load demo data",
             "q or ctrl+c exit TUI",
-            "escape clears transient focus in a future slice",
+            "escape clears transient focus",
         ]
 
     def _log(self, msg: str) -> None:

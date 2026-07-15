@@ -151,6 +151,34 @@ class LivePanel(Widget):
     BORDER_TITLE = "[2] Live"
 
     _TABS = ["experiments", "evolvers", "services"]
+    _TAB_ACTIONS = {
+        "experiments": {
+            "fuzzy_search",
+            "open_item",
+            "new_exp",
+            "edit_item",
+            "delete_item",
+            "pause_or_resume",
+            "cancel_exp",
+            "run_or_restart",
+        },
+        "evolvers": {
+            "fuzzy_search",
+            "open_item",
+            "config_item",
+            "edit_item",
+            "delete_item",
+        },
+        "services": {
+            "fuzzy_search",
+            "open_item",
+            "config_item",
+            "pause_or_resume",
+            "run_or_restart",
+            "start_service",
+            "stop_service",
+        },
+    }
 
     BINDINGS = [
         Binding("[,left", "prev_tab", "Prev tab", show=False),
@@ -258,6 +286,7 @@ class LivePanel(Widget):
         list_view = self.query_one(self._active_list_selector(), ListView)
         _mark_list_selection(list_view)
         list_view.focus()
+        self.app.refresh_bindings()
         self._post_current_context()
 
     def _active_list_selector(self) -> str:
@@ -289,6 +318,19 @@ class LivePanel(Widget):
         self, _event: TabbedContent.TabActivated
     ) -> None:
         self.call_after_refresh(self.focus_default)
+
+    def check_action(
+        self,
+        action: str,
+        parameters: tuple[object, ...],
+    ) -> bool | None:
+        if action in {"prev_tab", "next_tab"}:
+            return True
+        try:
+            active_tab = self._tc().active
+        except Exception:
+            return True
+        return action in self._TAB_ACTIONS.get(active_tab, set())
 
     def action_fuzzy_search(self) -> None:
         tc = self._tc()
