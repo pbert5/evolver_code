@@ -361,7 +361,7 @@ def test_tui_architecture_spells_out_tab_data_rows():
             assert row["display"]
 
 
-def test_focused_and_emphasized_rows_are_underlined():
+def test_only_emphasized_rows_are_underlined():
     from evolver_integrated.tui.panels import _list_item
 
     item = _list_item("emphasized", emphasized=True)
@@ -377,7 +377,10 @@ def test_focused_and_emphasized_rows_are_underlined():
     assert not inactive.has_class("state-emphasis-row")
     assert "ListView > ListItem.state-emphasis-row" in css
     assert "ListView > ListItem.persistent-highlight" in css
-    assert "text-style: underline;" in css
+    assert (
+        css.index("ListView > ListItem.state-emphasis-row")
+        < css.index("text-style: underline;")
+    )
 
 
 def test_evolver_tui_number_keys_focus_left_panels_without_hiding(monkeypatch):
