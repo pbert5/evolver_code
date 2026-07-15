@@ -13,6 +13,15 @@ Always prefix shell commands with `rtk` so command output stays token-efficient:
 - `rtk nix flake check`
 - `rtk pytest -q`
 
+Use the root flake dev environment for project commands that need repository
+dependencies, especially TUI tests and tooling that require `textual`:
+- `rtk nix develop --command pytest -q tests/test_tui.py`
+- `rtk nix develop --command flake8 evolver_integrated tests`
+
+## Languages
+- python
+    - use Serena for all Python interaction. This is explicit and mandatory: navigate Python with Serena, inspect Python symbols with Serena, and make Python symbol edits with Serena whenever a symbol-aware edit applies. 
+
 ## Serena Tool Usage
 
 Use Serena for all Python interaction. This is explicit and mandatory: navigate Python with Serena, inspect Python symbols with Serena, and make Python symbol edits with Serena whenever a symbol-aware edit applies.
@@ -28,6 +37,7 @@ Use Serena for all Python interaction. This is explicit and mandatory: navigate 
 - `data/` contains JSON objects and LinkML schemas that drive runtime behavior.
 - `docs/` contains architecture notes, plans, and design braindumps.
 - `evolver_integrated/` contains the control plane, supervisor, data service, runner management, and TUI source.
+- `evolver_integrated/tui` contians the tui source
 - `tests/` contains the integrated runtime test suite.
 - `deprecated/` contains the previous workspace-level projects and hardware/examples material.
 

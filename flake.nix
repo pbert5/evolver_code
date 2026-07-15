@@ -96,6 +96,7 @@
               aiohttp
               flake8
               pytest
+              pytestcov
               pyyaml
               python-socketio
               textual
@@ -156,6 +157,7 @@
               flake8
               pip
               pytest
+              pytestcov
               pyyaml
               python-socketio
               textual
