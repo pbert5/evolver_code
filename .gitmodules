@@ -1,12 +1,1 @@
-[submodule "evolver"]
-	path = deprecated/evolver
-	url = https://github.com/pbert5/evolver.git
-[submodule "dpu"]
-	path = deprecated/dpu
-	url = https://github.com/pbert5/dpu.git
-[submodule "evolver-arduino"]
-	path = deprecated/evolver-arduino
-	url = https://github.com/pbert5/evolver-arduino.git
-[submodule "evolver_plan"]
-	path = deprecated/evolver_plan
-	url = https://github.com/pbert5/evolver_plan.git
+
