@@ -1,3 +1,0 @@
-(fp_lib_table
-  (lib (name "temperature board")(type KiCad)(uri "${KIPRJMOD}/temperature board.pretty")(options "")(descr ""))
-)
