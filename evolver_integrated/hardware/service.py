@@ -145,11 +145,16 @@ class HardwareTester:
         return all(value <= ADC_RAIL_MARGIN for value in samples) or all(value >= ADC_MAXIMUM - ADC_RAIL_MARGIN for value in samples)
     def analog_connection_warnings(self) -> list[HardwareTestResult]:
         warnings = []
+        for sleeve in range(2):
+            readings = [self.analog_readings.get(f"{kind}.{sleeve}") for kind in ("thermistor", "photodiode")]
+            if all(samples and self._at_adc_rail(samples) for samples in readings):
+                direction = "high" if all(min(samples) >= ADC_MAXIMUM - ADC_RAIL_MARGIN for samples in readings) else "low"
+                warnings.append(self._result(f"sleeve.{sleeve}.connection", "sleeve", TestStatus.WARN, "Smart Sleeve analog inputs are not consistently at an ADC rail", observed=f"thermistor and photodiode for Smart Sleeve {sleeve} are near the ADC {direction} rail; that bioreactor/Sleeve may be unplugged"))
         for kind in ("thermistor", "photodiode"):
             readings = [self.analog_readings.get(f"{kind}.{channel}") for channel in range(2)]
             if all(samples and self._at_adc_rail(samples) for samples in readings):
                 direction = "high" if all(min(samples) >= ADC_MAXIMUM - ADC_RAIL_MARGIN for samples in readings) else "low"
                 warnings.append(self._result(f"sleeves.{kind}_connection", kind, TestStatus.WARN, "both Smart Sleeve inputs are not consistently at an ADC rail", observed=f"both {kind} channels are near the ADC {direction} rail; check Smart Sleeve connectors and shared wiring"))
-        if len(warnings) == 2:
+        if {"sleeve.0.connection", "sleeve.1.connection"} <= {warning.id for warning in warnings}:
             warnings.append(self._result("sleeves.analog_connection", "sleeves", TestStatus.WARN, "connected Smart Sleeve analog channels provide non-rail readings", observed="thermistors and photodiodes are all near an ADC rail; Smart Sleeve connectors may be unplugged"))
         return warnings

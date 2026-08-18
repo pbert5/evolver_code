@@ -185,7 +185,7 @@ PASS includes output such as:
 nix run .#hardware-test -- sensors --port /dev/ttyACM0 --debug
 ```
 
-The tool collects three raw 16-bit ADC readings per thermistor. Readings within 64 counts of either 16-bit ADC rail, and a very large spread, are WARN; perfectly stable repeated values are allowed. When both inputs of a sensor class are near the same rail, the tool also reports a Smart Sleeve connection warning. If both thermistors and photodiodes are near a rail, it explicitly suggests that Smart Sleeve connectors may be unplugged. As an optional cross-channel sanity check, warm Sleeve 0 gently by hand, rerun, and verify thermistor 0 changes while thermistor 1 does not show the same response; repeat for Sleeve 1.
+The tool collects three raw 16-bit ADC readings per thermistor. Readings within 64 counts of either 16-bit ADC rail, and a very large spread, are WARN; perfectly stable repeated values are allowed. When one Sleeve's thermistor and photodiode are both near a rail, the tool explicitly warns that **that bioreactor/Sleeve may be unplugged**. When both inputs of a sensor class are near the same rail, it also reports a broader Smart Sleeve connection warning. If every Sleeve analog input is near a rail, it suggests checking all Smart Sleeve connectors and shared wiring. As an optional cross-channel sanity check, warm Sleeve 0 gently by hand, rerun, and verify thermistor 0 changes while thermistor 1 does not show the same response; repeat for Sleeve 1.
 
 Record `thermistor electronics: PASS` and `temperature calibration: NOT_CALIBRATED`. A rail value suggests an open/short, connector, or wiring issue—not a calibration result.
 
@@ -353,7 +353,8 @@ For no ACM device, run `lsusb` and `dmesg | tail`, then check USB data cable, po
 | Observation | Diagnosis branch |
 | --- | --- |
 | Thermistor rail | Inspect open/short, sleeve connector, and wiring. |
-| Both thermistors or both photodiodes near one ADC rail | The tool reports a Smart Sleeve connection WARN. Check that the sleeves are plugged in, then inspect shared ground/reference and connector wiring. |
+| One Sleeve's thermistor and photodiode near one ADC rail | That bioreactor/Sleeve may be unplugged. Check its connector before deeper electrical diagnosis. |
+| Both thermistors or both photodiodes near one ADC rail | The tool reports a broader connection WARN. Check both sleeves, then inspect shared ground/reference and connector wiring. |
 | Photodiode does not change | Check LED wiring, PD wiring, sleeve mapping, optical geometry, and acknowledged LED command. |
 | Wrong physical pump | Wiring/mapping issue, not a successful mapping result. |
 | Pump ACK but no movement | Protocol success differs from physical actuation: inspect supply, driver, wiring, connector, then pump. |

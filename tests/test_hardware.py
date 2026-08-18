@@ -97,7 +97,18 @@ def test_all_near_rail_sleeve_inputs_suggest_unplugged_connectors():
         tester.sensor(channel)
         tester.od(channel)
     warning_ids = {result.id for result in tester.analog_connection_warnings()}
-    assert {"sleeves.thermistor_connection", "sleeves.photodiode_connection", "sleeves.analog_connection"} <= warning_ids
+    assert {"sleeve.0.connection", "sleeve.1.connection", "sleeves.thermistor_connection", "sleeves.photodiode_connection", "sleeves.analog_connection"} <= warning_ids
+
+
+def test_one_near_rail_sleeve_suggests_that_bioreactor_is_unplugged():
+    tester = HardwareTester(FakeHardwareBackend())
+    tester.analog_readings = {
+        "thermistor.0": [65520], "photodiode.0": [65520],
+        "thermistor.1": [32000], "photodiode.1": [20000],
+    }
+    warnings = tester.analog_connection_warnings()
+    assert warnings[0].id == "sleeve.0.connection"
+    assert "bioreactor/Sleeve may be unplugged" in warnings[0].observed
 
 
 def test_od_channel_association():
