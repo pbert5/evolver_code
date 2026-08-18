@@ -6,6 +6,7 @@ import os
 import subprocess
 import sys
 import time
+from glob import glob
 from pathlib import Path
 
 FQBN = "SparkFun:samd:samd21_mini"
@@ -20,6 +21,35 @@ def _cli() -> list[str]:
     data = Path(os.environ.get("EVOLVER_ARDUINO_DATA", ".arduino-cli"))
     data.mkdir(parents=True, exist_ok=True)
     return ["arduino-cli", "--config-file", str(data / "arduino-cli.yaml")]
+
+
+def _verify_commissioning_protocol(port: str) -> str:
+    """Find the re-enumerated board and leave it in the firmware safe state."""
+    import serial
+    from .protocol import parse_hardware_reply, parse_identity
+
+    last_error: Exception | None = None
+    for _ in range(10):
+        candidates = [port, *(path for path in sorted(glob("/dev/ttyACM*")) if path != port)]
+        for candidate in candidates:
+            try:
+                with serial.Serial(candidate, 9600, timeout=3) as device:
+                    device.write(b"WHO_ARE_YOU_!\n")
+                    identity = device.readline().decode(errors="replace").strip()
+                    device.write(b"HW_STATUS_!\n")
+                    status = device.readline().decode(errors="replace").strip()
+                    device.write(b"HW_SAFE_!\n")
+                    safe = device.readline().decode(errors="replace").strip()
+                parsed = parse_identity(identity)
+                parse_hardware_reply(status, "STATUS")
+                parse_hardware_reply(safe, "SAFE")
+                if parsed.hw_protocol < 1:
+                    raise ValueError("hw_proto is unavailable")
+                return candidate
+            except Exception as exc:
+                last_error = exc
+        time.sleep(0.5)
+    raise RuntimeError(f"could not verify commissioning protocol after upload: {last_error}")
 
 
 def main(argv: list[str] | None = None) -> int:
@@ -52,17 +82,8 @@ def main(argv: list[str] | None = None) -> int:
         port = args.port or "/dev/ttyACM0"
         time.sleep(2)
         try:
-            import serial
-            with serial.Serial(port, 9600, timeout=3) as device:
-                device.write(b"WHO_ARE_YOU_!\n")
-                identity = device.readline().decode(errors="replace").strip()
-                device.write(b"HW_STATUS_!\n")
-                status = device.readline().decode(errors="replace").strip()
-            from .protocol import parse_hardware_reply, parse_identity
-            parsed = parse_identity(identity)
-            parse_hardware_reply(status, "STATUS")
-            if parsed.hw_protocol < 1:
-                raise ValueError("hw_proto is unavailable")
+            verified_port = _verify_commissioning_protocol(port)
+            print(f"Commissioning protocol verified safely on {verified_port}")
         except Exception as exc:
             print(f"Upload completed but commissioning protocol verification failed: {exc}", file=sys.stderr)
             return 2

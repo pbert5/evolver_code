@@ -86,7 +86,9 @@ The focused suite currently reports `19 passed`. Firmware must compile for
 USB powers the SAMD21/serial connection; actuator power runs physical outputs.
 Flashing needs USB but not actuator power. Connect the normal supply specified
 by the assembled hardware only in Phase 9; this playbook does not prescribe a
-different supply rating.
+different supply rating. The commissioning firmware boots with all outputs off
+and temperature PID manual; normal temperature control starts only after an
+explicit normal controller command.
 
 ## Phase 1: discover the SAMD21
 
@@ -141,7 +143,7 @@ Keep actuator power disconnected. Substitute the discovered port.
 nix run .#upload-firmware -- --port /dev/ttyACM0
 ```
 
-The upload helper uploads, waits for reset/re-enumeration, then opens the specified port at 9600 baud, sends `WHO_ARE_YOU_!`, and sends `HW_STATUS_!`. PASS requires `type=minievolver`, `proto=2`, `fw=0.2`, and `hw_proto=1`.
+The upload helper uploads, waits for reset/re-enumeration, and searches the requested and available ACM ports for the min-eVOLVER. It then sends `WHO_ARE_YOU_!`, `HW_STATUS_!`, and `HW_SAFE_!`. PASS requires `type=minievolver`, `proto=2`, `fw=0.2`, `hw_proto=1`, and an acknowledged safe state.
 
 ```text
 HW|1|OK|STATUS|sleeves=2,pumps=6,fw=0.2,id=BLANK,hw_proto=1

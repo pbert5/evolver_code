@@ -26,6 +26,7 @@ def test_firmware_upload_compiles_with_vendored_libraries(monkeypatch):
         def __init__(self, *args, **kwargs): self.replies = iter((
             b"MEV|2|BLANK|1|HELLO|type=minievolver,proto=2,fw=0.2,hw_proto=1,id=BLANK,owner=BLANK|66\n",
             b"HW|1|OK|STATUS|sleeves=2,pumps=6,fw=0.2,id=BLANK,hw_proto=1\n",
+            b"HW|1|OK|SAFE|outputs=off\n",
         ))
         def __enter__(self): return self
         def __exit__(self, *args): return None
@@ -34,6 +35,7 @@ def test_firmware_upload_compiles_with_vendored_libraries(monkeypatch):
 
     monkeypatch.setattr(firmware.subprocess, "run", fake_run)
     monkeypatch.setattr(firmware.time, "sleep", lambda seconds: None)
+    monkeypatch.setattr(firmware, "glob", lambda pattern: ["/dev/ttyACM9"])
     monkeypatch.setitem(sys.modules, "serial", SimpleNamespace(Serial=FakeSerial))
 
     assert firmware.main(["upload", "--port", "/dev/ttyACM9"]) == 0
