@@ -172,7 +172,8 @@ thermistors must remain readable and no output is allowed to be requested.
 Only then reconnect actuator power and observe the MP915 heater resistors for
 at least 30 seconds while the controller is idle. They must remain cool. If an
 MP915 becomes warm, disconnect actuator power immediately; this is a fault,
-not an expected warm-up behavior.
+not an expected warm-up behavior. Status reports firmware intent, not measured
+heater voltage or current.
 
 | Failure | Action |
 | --- | --- |
@@ -307,7 +308,15 @@ An OK reply proves parsing and firmware drive request, not that a pump received 
 nix run .#hardware-test -- heaters --port /dev/ttyACM0 --debug
 ```
 
-**This is not a temperature-control test or temperature calibration. Do not run normal PID heating against an empty sleeve.** The host starts at 100 ms at level 32; Enter or Space repeats with 50 ms increases, capped at the firmware limit of 250 ms and level 64. The heater driver is active-low: safe/off writes the corresponding high/off value. A short dry pulse may have no meaningful physical indication, so PASS primarily means the bounded drive command was acknowledged and cleanup returns safely off. Use additional measurement equipment only under an approved electrical test procedure.
+**This is not a temperature-control test or temperature calibration. Do not run normal PID heating against an empty sleeve.** The host starts at 100 ms at level 32; Enter or Space repeats with 50 ms increases, capped at the firmware limit of 250 ms and level 64. The min-eVOLVER PCB uses A03422 N-channel low-side MOSFETs: Q6 for Sleeve 0 (SAMD21 pin 2) and Q8 for Sleeve 1 (pin 3). Therefore heater PWM is **active-high** and zero duty/LOW is off. A short dry pulse may have no meaningful physical indication, so PASS primarily means the bounded drive command was acknowledged and cleanup returns safely off. Use additional measurement equipment only under an approved electrical test procedure.
+
+The hardware design routes each heater MOSFET gate directly from the SAMD21;
+it does not show an external gate pull-down on these nets. Firmware drives LOW
+before configuring each heater output, but a board with a reset/unpowered
+SAMD21 cannot provide a hardware-enforced gate state. For a production safety
+revision, add an appropriate gate-to-ground pull-down for Q6 and Q8 and have a
+qualified electronics reviewer confirm the change. The reference schematic is
+[FYNCH-BIO min-eVOLVER PCB](https://github.com/FYNCH-BIO/hardware/tree/master/min-eVOLVER/min-eV-PCB).
 
 Record `heater electrical drive: PASS`, `closed-loop temperature control: NOT_TESTABLE`, and `temperature calibration: NOT_CALIBRATED`. Do not casually increase duration or level after failure; inspect power, driver, wiring, and safe-state behavior first.
 
@@ -425,7 +434,7 @@ For no ACM device, run `lsusb` and `dmesg | tail`, then check USB data cable, po
 | Pump ACK but no movement | Protocol success differs from physical actuation: inspect supply, driver, wiring, connector, then pump. |
 | Stir does not move | Inspect power, driver, sleeve wiring/connector, and physical stir assembly. |
 | Heater test failure | Do not increase the bounded pulse; inspect power, driver, wiring, and safe-state behavior. |
-| MP915 heater warm while idle | Disconnect actuator power immediately. Do not run another heater pulse or normal `temp` command. Confirm `temp_control=off,mode=idle` over USB, then inspect heater-driver wiring and hardware. |
+| MP915 heater warm while idle | Disconnect actuator power immediately. Do not run another heater pulse or normal `temp` command. Confirm `temp_control=off,mode=idle` over USB, then inspect Q6/Q8 (A03422 low-side MOSFETs), their gate wiring, and the heater connector. |
 | Serial dies during actuation | Disconnect actuator power immediately if safe state cannot be confirmed. |
 
 ## Debugging appendix: commissioning protocol
@@ -440,7 +449,7 @@ Commands end in `_!`; responses are `HW|1|OK|...` or `HW|1|ERR|...`. Firmware al
 | `HW_SET_OD_LED,n,l_!` | `n=0..1`, `l=0..255` | `SET_OD_LED` | Sets one LED; test mode stays active. |
 | `HW_PULSE_PUMP,n,ms_!` | `n=0..5`, `ms=1..1000` | `PULSE_PUMP` | Non-blocking bounded pulse. |
 | `HW_PULSE_STIR,n,ms,l_!` | `n=0..1`, `ms=1..1000`, `l=1..250` | `PULSE_STIR` | Non-blocking bounded pulse. |
-| `HW_PULSE_HEATER,n,ms,l_!` | `n=0..1`, `ms=1..250`, `l=1..64` | `PULSE_HEATER` | Active-low bounded electrical pulse. |
+| `HW_PULSE_HEATER,n,ms,l_!` | `n=0..1`, `ms=1..250`, `l=1..64` | `PULSE_HEATER` | Active-high, low-side bounded electrical pulse. |
 | `HW_SAFE_!` | none | `SAFE` | Immediate output-off safe state; cancels pulses/schedules. |
 
 Examples:

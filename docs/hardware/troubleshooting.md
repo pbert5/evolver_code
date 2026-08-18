@@ -19,4 +19,6 @@ An MP915 heater that is warm while the controller is idle is an immediate fault
 condition. Disconnect actuator power first. With USB still connected, confirm
 `HW_STATUS_!` reports `temp_control=off,mode=idle` and that `HW_SAFE_!` is
 acknowledged; do not send a normal `temp` command or extend a heater test
-pulse. Then inspect the heater-driver circuitry and wiring.
+pulse. Then inspect Q6/Q8—the A03422 N-channel, low-side heater MOSFETs—plus
+their gate and heater wiring. A software status reply does not measure heater
+voltage/current.
