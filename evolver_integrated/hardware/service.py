@@ -17,6 +17,10 @@ from .protocol import (HANDSHAKE, HW_PROTOCOL_VERSION, DeviceIdentity, HardwareR
 class HardwareError(RuntimeError): pass
 
 
+ADC_MAXIMUM = 65535
+ADC_RAIL_MARGIN = 64
+
+
 class HardwareBackend(Protocol):
     port: str
     debug_log: list[dict]
@@ -66,7 +70,9 @@ def discover_ports(port: Optional[str] = None) -> list[str]: return [port] if po
 
 
 class HardwareTester:
-    def __init__(self, backend: HardwareBackend) -> None: self.backend, self.results = backend, []
+    def __init__(self, backend: HardwareBackend) -> None:
+        self.backend, self.results = backend, []
+        self.analog_readings: dict[str, list[int]] = {}
     def _result(self, ident: str, component: str, status: TestStatus, expected: str, **kwargs: object) -> HardwareTestResult:
         result = HardwareTestResult(ident, component, status, expected, debug={"port": self.backend.port, **kwargs.pop("debug", {})}, **kwargs); self.results.append(result); return result
     @contextmanager
@@ -92,7 +98,8 @@ class HardwareTester:
     def sensor(self, sleeve: int) -> list[HardwareTestResult]:
         try:
             samples = [self.backend.read_thermistor(sleeve) for _ in range(3)]  # type: ignore[attr-defined]
-            plausible = all(1 <= value <= 65534 for value in samples) and max(samples) - min(samples) < 5000
+            self.analog_readings[f"thermistor.{sleeve}"] = samples
+            plausible = not self._at_adc_rail(samples) and max(samples) - min(samples) < 5000
             electronic = self._result(f"sleeve.{sleeve}.thermistor", "thermistor", TestStatus.PASS if plausible else TestStatus.WARN, f"thermistor on {HARDWARE_MAP['sleeves'][sleeve]['thermistor_pin']}", observed=str(samples))
         except Exception as exc: electronic = self._result(f"sleeve.{sleeve}.thermistor", "thermistor", TestStatus.FAIL, "three thermistor readings", observed=str(exc))
         return [electronic, self._result(f"sleeve.{sleeve}.temperature_calibration", "temperature", TestStatus.NOT_CALIBRATED, "calibrated temperature", automatic=False)]
@@ -105,6 +112,8 @@ class HardwareTester:
                 self.backend.set_od_led(sleeve, level)  # type: ignore[attr-defined]
                 readings.append([self.backend.read_photodiode(i) for i in range(2)])  # type: ignore[attr-defined]
             self.backend.set_od_led(sleeve, 0)  # type: ignore[attr-defined]
+            for channel in range(2):
+                self.analog_readings[f"photodiode.{channel}"] = [baseline[channel], *(row[channel] for row in readings)]
             own = [row[sleeve] - baseline[sleeve] for row in readings]; other = [row[1 - sleeve] - baseline[1 - sleeve] for row in readings]
             drive = max(abs(value) for value in own); cross = max(abs(value) for value in other)
             meaningful = 5 <= drive and drive > cross
@@ -130,4 +139,17 @@ class HardwareTester:
             if result.component not in ("pump", "stir") or result.status != TestStatus.PASS or not result.observed: continue
             if result.observed in seen: warnings.append(self._result(f"{result.component}.mapping.duplicate", result.component, TestStatus.WARN, "unique physical mapping", observed=f"{result.observed} also reported by {seen[result.observed].id}"))
             else: seen[result.observed] = result
+        return warnings
+    @staticmethod
+    def _at_adc_rail(samples: list[int]) -> bool:
+        return all(value <= ADC_RAIL_MARGIN for value in samples) or all(value >= ADC_MAXIMUM - ADC_RAIL_MARGIN for value in samples)
+    def analog_connection_warnings(self) -> list[HardwareTestResult]:
+        warnings = []
+        for kind in ("thermistor", "photodiode"):
+            readings = [self.analog_readings.get(f"{kind}.{channel}") for channel in range(2)]
+            if all(samples and self._at_adc_rail(samples) for samples in readings):
+                direction = "high" if all(min(samples) >= ADC_MAXIMUM - ADC_RAIL_MARGIN for samples in readings) else "low"
+                warnings.append(self._result(f"sleeves.{kind}_connection", kind, TestStatus.WARN, "both Smart Sleeve inputs are not consistently at an ADC rail", observed=f"both {kind} channels are near the ADC {direction} rail; check Smart Sleeve connectors and shared wiring"))
+        if len(warnings) == 2:
+            warnings.append(self._result("sleeves.analog_connection", "sleeves", TestStatus.WARN, "connected Smart Sleeve analog channels provide non-rail readings", observed="thermistors and photodiodes are all near an ADC rail; Smart Sleeve connectors may be unplugged"))
         return warnings

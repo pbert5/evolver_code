@@ -53,6 +53,7 @@ def run(args: argparse.Namespace, confirm: Callable[[str], str] = input) -> list
             for channel in range(2): tester.sensor(channel)
         if selected in ("od", "all"):
             for channel in range(2): tester.od(channel)
+        tester.analog_connection_warnings()
         for group, kind, channels in (("pumps", "pump", range(6)), ("stir", "stir", range(2)), ("heaters", "heater", range(2))):
             if selected in (group, "all"):
                 for channel in channels:

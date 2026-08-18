@@ -87,6 +87,19 @@ def test_rail_thermistor_warns():
     assert HardwareTester(backend).sensor(0)[0].status == TestStatus.WARN
 
 
+def test_all_near_rail_sleeve_inputs_suggest_unplugged_connectors():
+    backend = FakeHardwareBackend(responses={
+        "HW_READ_THERMISTOR": "HW|1|OK|THERMISTOR|channel=0,value=65520",
+        "HW_READ_PHOTODIODE": "HW|1|OK|PHOTODIODE|channel=0,value=65520",
+    })
+    tester = HardwareTester(backend)
+    for channel in range(2):
+        tester.sensor(channel)
+        tester.od(channel)
+    warning_ids = {result.id for result in tester.analog_connection_warnings()}
+    assert {"sleeves.thermistor_connection", "sleeves.photodiode_connection", "sleeves.analog_connection"} <= warning_ids
+
+
 def test_od_channel_association():
     backend = FakeHardwareBackend(); values = iter([100, 100, 120, 101, 170, 103, 230, 104])
     backend.responses["HW_READ_PHOTODIODE"] = "HW|1|OK|PHOTODIODE|channel=0,value=200"
