@@ -214,7 +214,7 @@ Now connect the normal actuator supply specified for the assembled min-eVOLVER, 
 nix run .#hardware-test -- stir --port /dev/ttyACM0 --debug
 ```
 
-The host pulses each stir for 500 ms at level 100, within the 1000 ms/250 firmware bounds, and prompts for the observed physical channel. Enter `0` or `1` for the sleeve that moved, `N` for none, or `S` to skip. Logical stir 0 must move Sleeve 0 and logical stir 1 must move Sleeve 1. Matching observation is PASS; none or wrong channel is FAIL; skip is SKIP.
+The host starts each stir with a 250 ms pulse at level 100, within the 1000 ms/250 firmware bounds, and prompts for the observed physical channel. Enter `0` or `1` for the sleeve that moved, `N` for none, or `S` to skip. Press Enter or type only Space to pulse it again; retries increase in 250 ms steps, capped at the firmware's 1000 ms maximum. Logical stir 0 must move Sleeve 0 and logical stir 1 must move Sleeve 1. Matching observation is PASS; none or wrong channel is FAIL; skip is SKIP.
 
 `stir actuation PASS` does not prove mixing performance, stir-bar behavior, or RPM calibration.
 
@@ -224,7 +224,7 @@ The host pulses each stir for 500 ms at level 100, within the 1000 ms/250 firmwa
 nix run .#hardware-test -- pumps --port /dev/ttyACM0 --debug
 ```
 
-Each logical pump gets a conservative 500 ms pulse (firmware maximum 1000 ms), then the `number/N/S` prompt. Complete this worksheet:
+Each logical pump starts with a conservative 250 ms pulse (firmware maximum 1000 ms), then the `number/N/S` prompt. Press Enter or Space to repeat it; each retry adds 250 ms up to 1000 ms. This makes subtle movement easier to identify without starting at the maximum duration. Complete this worksheet:
 
 | Logical pump | Expected pin | Observed physical pump | Result |
 | ---: | ---: | --- | --- |
@@ -254,7 +254,7 @@ An OK reply proves parsing and firmware drive request, not that a pump received 
 nix run .#hardware-test -- heaters --port /dev/ttyACM0 --debug
 ```
 
-**This is not a temperature-control test or temperature calibration. Do not run normal PID heating against an empty sleeve.** The host requests 250 ms at level 32; firmware limits are 250 ms and level 64. The heater driver is active-low: safe/off writes the corresponding high/off value. A short dry pulse may have no meaningful physical indication, so PASS primarily means the bounded drive command was acknowledged and cleanup returns safely off. Use additional measurement equipment only under an approved electrical test procedure.
+**This is not a temperature-control test or temperature calibration. Do not run normal PID heating against an empty sleeve.** The host starts at 100 ms at level 32; Enter or Space repeats with 50 ms increases, capped at the firmware limit of 250 ms and level 64. The heater driver is active-low: safe/off writes the corresponding high/off value. A short dry pulse may have no meaningful physical indication, so PASS primarily means the bounded drive command was acknowledged and cleanup returns safely off. Use additional measurement equipment only under an approved electrical test procedure.
 
 Record `heater electrical drive: PASS`, `closed-loop temperature control: NOT_TESTABLE`, and `temperature calibration: NOT_CALIBRATED`. Do not casually increase duration or level after failure; inspect power, driver, wiring, and safe-state behavior first.
 
@@ -280,6 +280,17 @@ nix run .#hardware-test -- all \
 ```
 
 `all` runs USB, protocol, both sensor tests, both OD tests, two stirs, six pumps, and two heater prompts. Status values are `PASS`, `FAIL`, `WARN`, `SKIP`, `NOT_TESTABLE`, and `NOT_CALIBRATED`: matching pump is PASS, weak OD association is WARN, declined heater is SKIP, unconfirmed actuator before the answer is NOT_TESTABLE, and calibration remains NOT_CALIBRATED.
+
+### Hardware-test report contents
+
+Use `--report PATH` with any hardware-test command, not only `all`. For example:
+
+```bash
+nix run .#hardware-test -- od --port /dev/ttyACM0 \
+  --debug --report ./bioreactor-od-test.json
+```
+
+The non-overwriting JSON report contains device type and port; run timestamps and operator (`hardware-test`); and each result keyed by component ID. Each component entry records status, expected and observed behavior, channel, automatic/manual classification, timestamp, and debug information. It includes sensor raw values, OD baselines/readings, Smart Sleeve unplugged-connection warnings, the safety acknowledgement, and operator-confirmed mappings. Repeated actuator attempts are retained in the component debug data with every commanded duration and firmware response; the final observation is the reported PASS/FAIL/SKIP result.
 
 ## Phase 15: formal commissioning
 

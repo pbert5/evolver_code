@@ -13,6 +13,7 @@ from .service import HardwareError, HardwareTester, LocalSerialBackend, discover
 
 
 COMMANDS = ("usb", "firmware", "protocol", "sensors", "od", "stir", "pumps", "heaters", "all")
+PULSE_PROFILES = {"pump": (250, 250, 1000), "stir": (250, 250, 1000), "heater": (100, 50, 250)}
 
 
 def build_parser() -> argparse.ArgumentParser:
@@ -38,6 +39,27 @@ def _print(results: list[HardwareTestResult], as_json: bool, debug: bool) -> Non
         if debug and result.debug: print(f"       debug: {json.dumps(result.debug, sort_keys=True)}")
 
 
+def _test_actuator(tester: HardwareTester, kind: str, channel: int, confirm: Callable[[str], str]) -> HardwareTestResult:
+    duration_ms, increment_ms, maximum_ms = PULSE_PROFILES[kind]
+    result = tester.actuator(kind, channel, duration_ms)
+    while result.status != TestStatus.FAIL:
+        answer = confirm(f"Logical {kind} {channel} pulsed for {duration_ms} ms; which physical channel moved? (number/N/S; Enter or Space=re-pulse): ")
+        value = answer.strip().lower()
+        if not value:
+            duration_ms = min(duration_ms + increment_ms, maximum_ms)
+            if not tester.repeat_actuator(result, kind, channel, duration_ms): break
+        elif value == "s":
+            result.status = TestStatus.SKIP
+            break
+        elif value == "n":
+            tester.record_observation(result, None)
+            break
+        elif value.isdigit():
+            tester.record_observation(result, int(value))
+            break
+    return result
+
+
 def run(args: argparse.Namespace, confirm: Callable[[str], str] = input) -> list[HardwareTestResult]:
     candidates = discover_ports(args.port)
     if not candidates:
@@ -57,12 +79,7 @@ def run(args: argparse.Namespace, confirm: Callable[[str], str] = input) -> list
         for group, kind, channels in (("pumps", "pump", range(6)), ("stir", "stir", range(2)), ("heaters", "heater", range(2))):
             if selected in (group, "all"):
                 for channel in channels:
-                    result = tester.actuator(kind, channel, 500 if kind != "heater" else 250)
-                    if result.status != TestStatus.FAIL:
-                        answer = confirm(f"Logical {kind} {channel}; which physical channel moved? (number/N/S): ").strip().lower()
-                        if answer == "s": result.status = TestStatus.SKIP
-                        elif answer == "n": tester.record_observation(result, None)
-                        elif answer.isdigit(): tester.record_observation(result, int(answer))
+                    _test_actuator(tester, kind, channel, confirm)
         tester.duplicate_mapping_warnings()
     return tester.results
 

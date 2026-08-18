@@ -45,6 +45,31 @@ def test_firmware_upload_compiles_with_vendored_libraries(monkeypatch):
     assert "upload" not in command
 
 
+def test_actuator_prompt_repeats_with_a_longer_bounded_pulse():
+    from evolver_integrated.hardware.cli import _test_actuator
+
+    class FakeTester:
+        def __init__(self): self.durations = []
+
+        def actuator(self, kind, channel, duration_ms):
+            self.durations.append(duration_ms)
+            return HardwareTestResult("pump.0.actuation", kind, TestStatus.NOT_TESTABLE, "x", channel=channel)
+
+        def repeat_actuator(self, result, kind, channel, duration_ms):
+            self.durations.append(duration_ms)
+            return True
+
+        def record_observation(self, result, observed_channel):
+            result.status = TestStatus.PASS if observed_channel == result.channel else TestStatus.FAIL
+            return result
+
+    tester = FakeTester()
+    answers = iter((" ", "0"))
+    result = _test_actuator(tester, "pump", 0, lambda prompt: next(answers))
+    assert tester.durations == [250, 500]
+    assert result.status == TestStatus.PASS
+
+
 def test_protocol_identity_parsing():
     identity = parse_identity("MEV|2|BLANK|1|HELLO|type=minievolver,proto=2,fw=0.2,hw_proto=1,id=BLANK,owner=BLANK|66")
     assert identity.device_id == "BLANK" and identity.hw_protocol == 1

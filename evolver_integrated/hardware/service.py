@@ -123,14 +123,28 @@ class HardwareTester:
         finally:
             try: self.backend.set_od_led(sleeve, 0)  # type: ignore[attr-defined]
             except Exception: pass
+    def _pulse_actuator(self, kind: str, channel: int, duration_ms: int) -> HardwareReply:
+        if kind == "pump": return self.backend.pulse_pump(channel, duration_ms)  # type: ignore[attr-defined]
+        if kind == "stir": return self.backend.pulse_stir(channel, duration_ms, 100)  # type: ignore[attr-defined]
+        return self.backend.pulse_heater(channel, duration_ms, 32)  # type: ignore[attr-defined]
     def actuator(self, kind: str, channel: int, duration_ms: int = 500) -> HardwareTestResult:
         pin = HARDWARE_MAP["pumps"][channel] if kind == "pump" else HARDWARE_MAP["sleeves"][channel][f"{kind}_pin"]
         try:
-            if kind == "pump": reply = self.backend.pulse_pump(channel, duration_ms)  # type: ignore[attr-defined]
-            elif kind == "stir": reply = self.backend.pulse_stir(channel, duration_ms, 100)  # type: ignore[attr-defined]
-            else: reply = self.backend.pulse_heater(channel, duration_ms, 32)  # type: ignore[attr-defined]
-            return self._result(f"{kind}.{channel}.actuation", kind, TestStatus.NOT_TESTABLE, f"physical {kind} {channel} actuates on pin {pin}", channel=channel, automatic=False, observed="awaiting operator confirmation", debug={"mcu_pin": pin, "response": reply.raw})
+            reply = self._pulse_actuator(kind, channel, duration_ms)
+            return self._result(f"{kind}.{channel}.actuation", kind, TestStatus.NOT_TESTABLE, f"physical {kind} {channel} actuates on pin {pin}", channel=channel, automatic=False, observed="awaiting operator confirmation", duration_ms=duration_ms, debug={"mcu_pin": pin, "response": reply.raw, "attempts": [{"duration_ms": duration_ms, "response": reply.raw}]})
         except Exception as exc: return self._result(f"{kind}.{channel}.actuation", kind, TestStatus.FAIL, f"{kind} command acknowledged", channel=channel, observed=str(exc), debug={"mcu_pin": pin})
+    def repeat_actuator(self, result: HardwareTestResult, kind: str, channel: int, duration_ms: int) -> bool:
+        try:
+            reply = self._pulse_actuator(kind, channel, duration_ms)
+            result.duration_ms = duration_ms
+            result.debug.setdefault("attempts", []).append({"duration_ms": duration_ms, "response": reply.raw})
+            result.debug["response"] = reply.raw
+            return True
+        except Exception as exc:
+            result.status = TestStatus.FAIL
+            result.observed = str(exc)
+            result.debug["error"] = str(exc)
+            return False
     def record_observation(self, result: HardwareTestResult, observed_channel: Optional[int]) -> HardwareTestResult:
         result.observed = "none" if observed_channel is None else f"physical channel {observed_channel}"; result.status = TestStatus.PASS if observed_channel == result.channel else TestStatus.FAIL; return result
     def duplicate_mapping_warnings(self) -> list[HardwareTestResult]:
