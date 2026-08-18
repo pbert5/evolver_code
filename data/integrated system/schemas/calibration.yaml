@@ -1,0 +1,107 @@
+id: https://w3id.org/evolver/integrated-system/calibration
+name: integrated_evolver_calibration
+title: Integrated eVOLVER Calibration Schema
+imports:
+  - linkml:types
+  - base
+  - hardware
+  - inventory
+prefixes:
+  linkml: https://w3id.org/linkml/
+  evolver: https://w3id.org/evolver/
+default_prefix: evolver
+default_range: string
+
+classes:
+  CalibrationRecord:
+    is_a: NamedEntity
+    description: Calibration result for temperature, OD, pump, or blank correction.
+    attributes:
+      calibration_type:
+        range: CalibrationTypeEnum
+        required: true
+      target_device_id:
+        range: Device
+      target_component_id:
+        range: Component
+      vial_index:
+        range: integer
+      material_id:
+        range: Material
+      sample_id:
+        range: ResearchSample
+      performed_at:
+        range: datetime
+        required: true
+      performed_by_id:
+        range: PersonOrAgent
+      valid_from:
+        range: datetime
+      valid_until:
+        range: datetime
+      status:
+        range: CalibrationStatusEnum
+      coefficients:
+        range: CalibrationCoefficient
+        multivalued: true
+        inlined_as_list: true
+      source_data_uri:
+        range: uri
+      invalidation_conditions:
+        range: CalibrationInvalidationCondition
+        multivalued: true
+        inlined_as_list: true
+      notes:
+
+  CalibrationCoefficient:
+    description: Named calibration coefficient or parameter.
+    attributes:
+      name:
+        required: true
+      value:
+        range: decimal
+        required: true
+      unit:
+      uncertainty:
+        range: decimal
+
+  CalibrationInvalidationCondition:
+    description: Condition that makes a calibration suspect or invalid.
+    attributes:
+      condition_type:
+        range: CalibrationInvalidationTypeEnum
+        required: true
+      applies_to:
+      reason:
+      severity:
+        range: SeverityEnum
+
+enums:
+  CalibrationTypeEnum:
+    permissible_values:
+      temperature: {}
+      optical_density: {}
+      od_blank: {}
+      pump_flow_rate: {}
+      pump_direction: {}
+      vial_position: {}
+      custom: {}
+
+  CalibrationStatusEnum:
+    permissible_values:
+      draft: {}
+      valid: {}
+      stale: {}
+      invalid: {}
+      superseded: {}
+
+  CalibrationInvalidationTypeEnum:
+    permissible_values:
+      vial_replaced: {}
+      organism_changed: {}
+      media_changed: {}
+      sensor_replaced: {}
+      pump_replaced: {}
+      tubing_replaced: {}
+      environmental_light_changed: {}
+      manual_invalidated: {}

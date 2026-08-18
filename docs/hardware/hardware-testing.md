@@ -1,5 +1,8 @@
 # Hardware-testing playbook
 
+This is the concise command reference. For a first assembled device, follow the
+[complete bench testing and commissioning playbook](../testing/min-evolver-hardware-playbook.md).
+
 Remove liquid/vials before commissioning. The firmware protocol is explicit and
 always replies with `HW|1|OK|OPERATION|key=value,...` or an `ERR` reply. It is
 separate from normal `od_90`, `od_led`, `temp`, `stir`, and `pump` controls.
