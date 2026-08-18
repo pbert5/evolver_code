@@ -87,8 +87,11 @@ USB powers the SAMD21/serial connection; actuator power runs physical outputs.
 Flashing needs USB but not actuator power. Connect the normal supply specified
 by the assembled hardware only in Phase 9; this playbook does not prescribe a
 different supply rating. The commissioning firmware boots with all outputs off
-and temperature PID manual; normal temperature control starts only after an
-explicit normal controller command.
+and temperature PID manual. Pumps, stirrers, heaters, and OD LEDs remain off
+after boot; normal temperature control starts only after an explicit applied
+normal `temp` command. **MP915 heater resistors becoming hot while the
+controller is idle is a fault condition:** disconnect actuator power and
+inspect the heater driver/wiring before proceeding.
 
 ## Phase 1: discover the SAMD21
 
@@ -145,6 +148,9 @@ nix run .#upload-firmware -- --port /dev/ttyACM0
 
 The upload helper uploads, waits for reset/re-enumeration, and searches the requested and available ACM ports for the min-eVOLVER. It then sends `WHO_ARE_YOU_!`, `HW_STATUS_!`, and `HW_SAFE_!`. PASS requires `type=minievolver`, `proto=2`, `fw=0.2`, `hw_proto=1`, and an acknowledged safe state.
 
+On a freshly booted safe-idle controller, `HW_STATUS_!` also reports
+`temp_control=off,mode=idle`. This is the expected pre-experiment state.
+
 ```text
 HW|1|OK|STATUS|sleeves=2,pumps=6,fw=0.2,id=BLANK,hw_proto=1
 ```
@@ -164,6 +170,11 @@ nix run .#hardware-smoke -- --port /dev/ttyACM0
 ```
 
 This does not command pumps, stirrers, heaters, or OD LEDs. It runs `WHO_ARE_YOU_!`, `HW_STATUS_!`, three thermistor reads for each sleeve, one photodiode read for each sleeve, then session cleanup with `HW_SAFE_!`. PASS means communication, commissioning protocol, both analog sensor classes, and a safe-state acknowledgement work. It does not prove actuator hardware.
+
+For a real safe-idle verification, reset/power the controller without sending a
+normal `temp` command, wait at least 30 seconds, confirm the MP915 heaters
+remain cool, then run the non-actuating smoke test. Do not use an empty sleeve
+to validate heating.
 
 ### Optional: live sensor monitor
 

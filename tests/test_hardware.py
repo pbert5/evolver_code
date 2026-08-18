@@ -92,6 +92,16 @@ def test_hardware_reply_success_error_and_malformed():
     with pytest.raises(ValueError): parse_hardware_reply("OK")
 
 
+def test_status_parses_safe_idle_fields():
+    reply = parse_hardware_reply(
+        "HW|1|OK|STATUS|sleeves=2,pumps=6,fw=0.2,hw_proto=1,"
+        "temp_control=off,mode=idle",
+        "STATUS",
+    )
+    assert reply.fields["temp_control"] == "off"
+    assert reply.fields["mode"] == "idle"
+
+
 def test_protocol_rejects_non_evolver():
     with pytest.raises(ValueError, match="not a min-eVOLVER"): parse_identity("hello")
 

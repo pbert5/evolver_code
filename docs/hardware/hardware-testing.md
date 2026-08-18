@@ -40,3 +40,8 @@ control. It expires after 15 seconds without a valid command, forcing all
 outputs off. `HW_SAFE` cancels pending pulses and chemostat schedules. The OD
 test checks electronic response and channel association only; it reports
 `od_calibration=NOT_CALIBRATED`.
+
+After boot, pumps, stirrers, heaters, and OD LEDs are OFF and temperature PID
+is disabled. Only an explicit applied normal `temp` command enables PID. An
+MP915 heater becoming hot while idle is a fault: disconnect actuator power and
+inspect the driver and wiring.
