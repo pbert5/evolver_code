@@ -140,6 +140,14 @@ def test_client_module_imports():
     assert callable(ControlAPIClient)
 
 
+def test_sensor_monitor_sparkline_tracks_raw_changes():
+    from evolver_integrated.tui.screens import sensor_sparkline
+
+    assert sensor_sparkline([], 4) == "····"
+    assert sensor_sparkline([10, 10], 4) == "··▅▅"
+    assert sensor_sparkline([0, 10], 2) == "▁█"
+
+
 def test_panels_module_imports():
     from evolver_integrated.tui.panels import (
         ComponentsPanel,

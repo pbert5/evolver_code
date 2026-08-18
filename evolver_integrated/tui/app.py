@@ -5,6 +5,7 @@ import argparse
 from copy import deepcopy
 import json
 from datetime import datetime
+import os
 from pathlib import Path
 from typing import Optional
 
@@ -30,6 +31,7 @@ from .screens import (
     ConfirmScreen,
     FuzzySearchScreen,
     HardwareCommissioningScreen,
+    HardwareMonitorScreen,
     NewExperimentScreen,
     TemplateFormScreen,
 )
@@ -64,6 +66,7 @@ class EvolverTUI(App):
         Binding("escape", "clear_focus", "Clear focus", show=False),
         Binding("d", "load_demo_data", "Demo", show=False),
         Binding("c", "hardware_commissioning", "Hardware", priority=True),
+        Binding("m", "hardware_monitor", "Sensors", priority=True),
     ]
 
     def __init__(
@@ -109,9 +112,29 @@ class EvolverTUI(App):
     def action_hardware_commissioning(self) -> None:
         """Open a separate hardware workspace, not an experiment-management view."""
         from evolver_integrated.hardware.service import LocalSerialBackend
-        import os
-        port = os.environ.get("EVOLVER_HARDWARE_PORT", "/dev/ttyACM0")
-        self.push_screen(HardwareCommissioningScreen(lambda: LocalSerialBackend(port)))
+        self.push_screen(
+            HardwareCommissioningScreen(
+                lambda: LocalSerialBackend(self._hardware_port())
+            )
+        )
+
+    def action_hardware_monitor(self) -> None:
+        """Open a read-only raw-sensor trend view in commissioning safe mode."""
+        from evolver_integrated.hardware.service import LocalSerialBackend
+        self.push_screen(
+            HardwareMonitorScreen(
+                lambda: LocalSerialBackend(self._hardware_port())
+            )
+        )
+
+    @staticmethod
+    def _hardware_port() -> str:
+        requested = os.environ.get("EVOLVER_HARDWARE_PORT")
+        if requested:
+            return requested
+        from evolver_integrated.hardware.service import discover_ports
+        candidates = discover_ports()
+        return candidates[0] if len(candidates) == 1 else "/dev/ttyACM0"
 
     async def _poll(self) -> None:
         await self._refresh_status()

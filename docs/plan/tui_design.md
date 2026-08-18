@@ -631,3 +631,13 @@ checks plus emergency shutdown to `evolver_integrated.hardware.HardwareTester`.
 The initial direct-local backend uses `EVOLVER_HARDWARE_PORT` (default
 `/dev/ttyACM0`); a future hardwared client can replace that factory without
 changing widgets.
+
+## Live sensor monitor
+
+The `m` binding opens a separate read-only Smart Sleeve monitor. It polls raw
+thermistor and photodiode ADC values for both sleeves once per second and shows
+a rolling per-sensor sparkline plus current value. It enters commissioning safe
+mode before sampling, never actuates an output, and requests `HW_SAFE_!` when
+the view closes or serial polling fails. The monitor is for unexpected-change
+watching and wiring diagnosis only; raw ADC charts do not imply temperature or
+OD calibration.

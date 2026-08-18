@@ -13,6 +13,156 @@ from textual.screen import ModalScreen
 from textual.widgets import Button, Input, Label, ListItem, ListView, TextArea, Static
 
 
+def sensor_sparkline(values: list[int], width: int = 36) -> str:
+    """Render recent raw ADC readings without implying calibration."""
+    samples = values[-width:]
+    if not samples:
+        return "·" * width
+    low, high = min(samples), max(samples)
+    if low == high:
+        graph = "▅" * len(samples)
+    else:
+        glyphs = "▁▂▃▄▅▆▇█"
+        graph = "".join(
+            glyphs[(value - low) * (len(glyphs) - 1) // (high - low)]
+            for value in samples
+        )
+    return graph.rjust(width, "·")
+
+
+class HardwareMonitorScreen(ModalScreen[None]):
+    """Read-only live raw-sensor monitor with safe serial cleanup."""
+
+    BINDINGS = [
+        Binding("escape", "dismiss_screen", "Close"),
+        Binding("s", "safe_state", "Safe state"),
+    ]
+    DEFAULT_CSS = """
+    HardwareMonitorScreen { align: center middle; }
+    #hardware-monitor-dialog {
+        width: 96; height: 24; border: round $accent;
+        background: $surface; padding: 1 2;
+    }
+    #hardware-monitor-readings { height: 1fr; }
+    #hardware-monitor-status { height: 3; }
+    """
+    HISTORY_LENGTH = 72
+
+    def __init__(self, backend_factory: Any) -> None:
+        super().__init__()
+        self._backend_factory = backend_factory
+        self._backend: Any = None
+        self._history = {
+            f"{kind}.{channel}": []
+            for kind in ("thermistor", "photodiode")
+            for channel in range(2)
+        }
+        self._error = "Connecting…"
+
+    def compose(self) -> ComposeResult:
+        with Vertical(id="hardware-monitor-dialog"):
+            yield Label("Live Smart Sleeve Sensor Monitor — raw ADC, read-only")
+            yield Label(
+                "Reads hold commissioning safe mode; PID remains suspended. "
+                "Esc closes safely; s sends safe state."
+            )
+            yield Static("Waiting for first sample…", id="hardware-monitor-readings")
+            yield Static("", id="hardware-monitor-status")
+
+    def on_mount(self) -> None:
+        try:
+            self._backend = self._backend_factory()
+            self._backend.open()
+            self._backend.safe_state()
+            self._error = "LIVE — no outputs are commanded by this monitor"
+            self._poll_sensors()
+            self.set_interval(1.0, self._poll_sensors)
+        except Exception as exc:
+            self._error = (
+                f"MONITOR ERROR: {exc}. Disconnect actuator power if safe "
+                "state cannot be confirmed."
+            )
+            self._safe_close()
+            self._render()
+
+    def _poll_sensors(self) -> None:
+        if self._backend is None:
+            return
+        try:
+            for channel in range(2):
+                self._append(
+                    "thermistor", channel,
+                    self._backend.read_thermistor(channel),
+                )
+                self._append(
+                    "photodiode", channel,
+                    self._backend.read_photodiode(channel),
+                )
+            self._error = (
+                "LIVE — raw ADC values update every second; this is not "
+                "calibration"
+            )
+        except Exception as exc:
+            self._error = f"MONITOR ERROR: {exc}. Safe state is being requested."
+            self._safe_close()
+        self._render()
+
+    def _append(self, kind: str, channel: int, value: int) -> None:
+        history = self._history[f"{kind}.{channel}"]
+        history.append(value)
+        del history[:-self.HISTORY_LENGTH]
+
+    def _render(self) -> None:
+        lines = []
+        for channel in range(2):
+            for kind, label in (
+                ("thermistor", "Thermistor"),
+                ("photodiode", "Photodiode"),
+            ):
+                values = self._history[f"{kind}.{channel}"]
+                current = "—" if not values else str(values[-1])
+                trend = sensor_sparkline(values)
+                lines.append(f"Sleeve {channel}  {label:<11} {current:>5}  {trend}")
+        if self.is_mounted:
+            self.query_one(
+                "#hardware-monitor-readings", Static
+            ).update("\n".join(lines))
+            self.query_one("#hardware-monitor-status", Static).update(self._error)
+
+    def _safe_close(self) -> None:
+        if self._backend is None:
+            return
+        try:
+            self._backend.safe_state()
+        except Exception:
+            pass
+        try:
+            self._backend.close()
+        finally:
+            self._backend = None
+
+    def action_safe_state(self) -> None:
+        if self._backend is not None:
+            try:
+                self._backend.safe_state()
+                self._error = (
+                    "SAFE acknowledged; monitoring will resume on the next "
+                    "read."
+                )
+            except Exception as exc:
+                self._error = (
+                    f"SAFE could not be confirmed: {exc}. Disconnect actuator "
+                    "power."
+                )
+            self._render()
+
+    def action_dismiss_screen(self) -> None:
+        self.dismiss(None)
+
+    def on_unmount(self) -> None:
+        self._safe_close()
+
+
 class HardwareCommissioningScreen(ModalScreen[None]):
     """A deliberately separate, safety-first hardware/commissioning mode.
 
@@ -70,7 +220,8 @@ class HardwareCommissioningScreen(ModalScreen[None]):
                 for item in tester.results
             )
             exchanges = "\n".join(
-                f"TX {item.get('tx')} RX {item.get('rx')} duration={item.get('duration_ms', '?')}ms"
+                f"TX {item.get('tx')} RX {item.get('rx')} "
+                f"duration={item.get('duration_ms', '?')}ms"
                 for item in tester.backend.debug_log
             )
             if exchanges:
