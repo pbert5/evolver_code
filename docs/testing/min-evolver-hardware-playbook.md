@@ -1,9 +1,9 @@
 # min-eVOLVER Firmware, Hardware Testing, and Commissioning Playbook
 
 This bench procedure is for a newly assembled min-eVOLVER connected over USB to
-a Linux/NixOS host. It reflects `evolver_code` commit
-`779f85b33a5f4d8e7e7631e8e89738d4fede1802` and `evolver-arduino` commit
-`1cc0ab78bb1de8ae3423ffa4b718712d35c54f46`.
+a Linux/NixOS host. It reflects the `test-hardware` safe-idle firmware work in
+`evolver_code` commit `cad5ddd74e1dd2c7d0af6ba519aba5bd5fb85fe1` and pinned
+`evolver-arduino` commit `1d3a35509482b059205d27150ef5ccec4f6b8941`.
 
 ## Three separate stages
 
@@ -152,8 +152,27 @@ On a freshly booted safe-idle controller, `HW_STATUS_!` also reports
 `temp_control=off,mode=idle`. This is the expected pre-experiment state.
 
 ```text
-HW|1|OK|STATUS|sleeves=2,pumps=6,fw=0.2,id=BLANK,hw_proto=1
+HW|1|OK|STATUS|sleeves=2,pumps=6,fw=0.2,id=BLANK,hw_proto=1,temp_control=off,mode=idle
 ```
+
+### Required safe-idle check after flashing
+
+Keep the actuator supply disconnected. The upload helper already performs this
+handshake, but run the following explicit, non-actuating check when bringing up
+a controller that previously showed warm MP915 resistors:
+
+```bash
+nix run .#hardware-test -- protocol --port /dev/ttyACM0 --debug
+```
+
+PASS requires a `STATUS` reply containing `temp_control=off,mode=idle` and a
+`HW|1|OK|SAFE|outputs=off` reply. Do not send a normal `temp` command. With
+actuator power still disconnected, reset the board and wait 30 seconds; its
+thermistors must remain readable and no output is allowed to be requested.
+Only then reconnect actuator power and observe the MP915 heater resistors for
+at least 30 seconds while the controller is idle. They must remain cool. If an
+MP915 becomes warm, disconnect actuator power immediately; this is a fault,
+not an expected warm-up behavior.
 
 | Failure | Action |
 | --- | --- |
@@ -174,7 +193,9 @@ This does not command pumps, stirrers, heaters, or OD LEDs. It runs `WHO_ARE_YOU
 For a real safe-idle verification, reset/power the controller without sending a
 normal `temp` command, wait at least 30 seconds, confirm the MP915 heaters
 remain cool, then run the non-actuating smoke test. Do not use an empty sleeve
-to validate heating.
+to validate heating. A `HW_SAFE_!` acknowledgement proves the firmware accepted
+the command; it is not a substitute for physically checking that a previously
+hot heater has stopped heating.
 
 ### Optional: live sensor monitor
 
@@ -346,6 +367,7 @@ Controller
 [ ] proto=2
 [ ] hw_proto=1
 [ ] HW_STATUS PASS
+[ ] `temp_control=off,mode=idle` after reset and before any normal `temp` command
 [ ] HW_SAFE PASS
 
 Smart Sleeve 0
@@ -403,6 +425,7 @@ For no ACM device, run `lsusb` and `dmesg | tail`, then check USB data cable, po
 | Pump ACK but no movement | Protocol success differs from physical actuation: inspect supply, driver, wiring, connector, then pump. |
 | Stir does not move | Inspect power, driver, sleeve wiring/connector, and physical stir assembly. |
 | Heater test failure | Do not increase the bounded pulse; inspect power, driver, wiring, and safe-state behavior. |
+| MP915 heater warm while idle | Disconnect actuator power immediately. Do not run another heater pulse or normal `temp` command. Confirm `temp_control=off,mode=idle` over USB, then inspect heater-driver wiring and hardware. |
 | Serial dies during actuation | Disconnect actuator power immediately if safe state cannot be confirmed. |
 
 ## Debugging appendix: commissioning protocol
@@ -411,7 +434,7 @@ Commands end in `_!`; responses are `HW|1|OK|...` or `HW|1|ERR|...`. Firmware al
 
 | Command | Arguments/range | Response operation | Side effect/safety |
 | --- | --- | --- | --- |
-| `HW_STATUS_!` | none | `STATUS` | Metadata only. |
+| `HW_STATUS_!` | none | `STATUS` | Metadata only; safe boot reports `temp_control=off,mode=idle`. |
 | `HW_READ_THERMISTOR,n_!` | `n=0..1` | `THERMISTOR` | Raw ADC read; enters test mode. |
 | `HW_READ_PHOTODIODE,n_!` | `n=0..1` | `PHOTODIODE` | Raw ADC read; enters test mode. |
 | `HW_SET_OD_LED,n,l_!` | `n=0..1`, `l=0..255` | `SET_OD_LED` | Sets one LED; test mode stays active. |

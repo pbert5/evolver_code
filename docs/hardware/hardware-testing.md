@@ -45,3 +45,14 @@ After boot, pumps, stirrers, heaters, and OD LEDs are OFF and temperature PID
 is disabled. Only an explicit applied normal `temp` command enables PID. An
 MP915 heater becoming hot while idle is a fault: disconnect actuator power and
 inspect the driver and wiring.
+
+For a post-flash safe-idle check, keep actuator power disconnected and run:
+
+```bash
+nix run .#hardware-test -- protocol --port /dev/ttyACM0 --debug
+```
+
+Require `temp_control=off,mode=idle` in `HW_STATUS` and a successful
+`HW_SAFE`. Reset the controller, wait 30 seconds without a normal `temp`
+command, then reconnect actuator power only to observe that the MP915 heaters
+stay cool. See the detailed [safe-idle procedure](../testing/min-evolver-hardware-playbook.md#required-safe-idle-check-after-flashing).

@@ -14,3 +14,9 @@ serial failures, inspect the reported safe-state WARN and disconnect power if
 shutdown could not be confirmed. Firmware commissioning mode automatically
 times out after 15 seconds; it is not a substitute for disconnecting power when
 serial communication is lost.
+
+An MP915 heater that is warm while the controller is idle is an immediate fault
+condition. Disconnect actuator power first. With USB still connected, confirm
+`HW_STATUS_!` reports `temp_control=off,mode=idle` and that `HW_SAFE_!` is
+acknowledged; do not send a normal `temp` command or extend a heater test
+pulse. Then inspect the heater-driver circuitry and wiring.
