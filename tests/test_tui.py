@@ -148,6 +148,36 @@ def test_sensor_monitor_sparkline_tracks_raw_changes():
     assert sensor_sparkline([0, 10], 2) == "▁█"
 
 
+def test_hardware_monitor_mounts_and_closes_in_safe_state():
+    from textual.app import App, ComposeResult
+    from textual.widgets import Static
+
+    from evolver_integrated.hardware.fake import FakeHardwareBackend
+    from evolver_integrated.tui.screens import HardwareMonitorScreen
+
+    class MonitorApp(App):
+        def compose(self) -> ComposeResult:
+            yield Static("monitor host")
+
+    backend = FakeHardwareBackend()
+    monitor = HardwareMonitorScreen(lambda: backend)
+
+    async def run_app():
+        app = MonitorApp()
+        async with app.run_test() as pilot:
+            app.push_screen(monitor)
+            await pilot.pause()
+            await pilot.pause()
+            readings = monitor.query_one("#hardware-monitor-readings", Static)
+            assert "Sleeve 0" in str(readings.render()), monitor._error
+            await pilot.press("escape")
+            await pilot.pause()
+
+    asyncio.run(run_app())
+    assert not backend.opened
+    assert any(item["tx"] == "HW_SAFE_!" for item in backend.debug_log)
+
+
 def test_panels_module_imports():
     from evolver_integrated.tui.panels import (
         ComponentsPanel,

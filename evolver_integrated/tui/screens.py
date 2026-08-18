@@ -83,7 +83,7 @@ class HardwareMonitorScreen(ModalScreen[None]):
                 "state cannot be confirmed."
             )
             self._safe_close()
-            self._render()
+            self._render_monitor()
 
     def _poll_sensors(self) -> None:
         if self._backend is None:
@@ -105,14 +105,14 @@ class HardwareMonitorScreen(ModalScreen[None]):
         except Exception as exc:
             self._error = f"MONITOR ERROR: {exc}. Safe state is being requested."
             self._safe_close()
-        self._render()
+        self._render_monitor()
 
     def _append(self, kind: str, channel: int, value: int) -> None:
         history = self._history[f"{kind}.{channel}"]
         history.append(value)
         del history[:-self.HISTORY_LENGTH]
 
-    def _render(self) -> None:
+    def _render_monitor(self) -> None:
         lines = []
         for channel in range(2):
             for kind, label in (
@@ -123,11 +123,10 @@ class HardwareMonitorScreen(ModalScreen[None]):
                 current = "—" if not values else str(values[-1])
                 trend = sensor_sparkline(values)
                 lines.append(f"Sleeve {channel}  {label:<11} {current:>5}  {trend}")
-        if self.is_mounted:
-            self.query_one(
-                "#hardware-monitor-readings", Static
-            ).update("\n".join(lines))
-            self.query_one("#hardware-monitor-status", Static).update(self._error)
+        self.query_one(
+            "#hardware-monitor-readings", Static
+        ).update("\n".join(lines))
+        self.query_one("#hardware-monitor-status", Static).update(self._error)
 
     def _safe_close(self) -> None:
         if self._backend is None:
@@ -154,7 +153,7 @@ class HardwareMonitorScreen(ModalScreen[None]):
                     f"SAFE could not be confirmed: {exc}. Disconnect actuator "
                     "power."
                 )
-            self._render()
+            self._render_monitor()
 
     def action_dismiss_screen(self) -> None:
         self.dismiss(None)
