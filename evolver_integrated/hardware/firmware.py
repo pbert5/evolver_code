@@ -41,7 +41,12 @@ def main(argv: list[str] | None = None) -> int:
         print("Firmware source SAMD21/MINEVOLVER/MINEVOLVER.ino is not present in this checkout. Restore/initialize the evolver-arduino source (or set EVOLVER_FIRMWARE_DIR) before building.", file=sys.stderr)
         return 2
     libraries = source.parents[1] / "libraries"
-    command = _cli() + (["compile", "--fqbn", FQBN, "--libraries", str(libraries), str(source)] if args.action == "build" else ["upload", "--fqbn", FQBN, "--port", args.port or "/dev/ttyACM0", "--libraries", str(libraries), str(source)])
+    command = _cli() + ["compile", "--fqbn", FQBN, "--libraries", str(libraries)]
+    if args.action == "upload":
+        # Arduino CLI accepts --libraries only while compiling.  Compile and
+        # upload in one invocation so the locally vendored libraries are used.
+        command += ["--port", args.port or "/dev/ttyACM0", "--upload"]
+    command += [str(source)]
     subprocess.run(command, check=True)
     if args.action == "upload":
         port = args.port or "/dev/ttyACM0"

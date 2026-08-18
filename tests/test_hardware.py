@@ -1,4 +1,6 @@
 from pathlib import Path
+import sys
+from types import SimpleNamespace
 
 import pytest
 
@@ -10,6 +12,37 @@ from evolver_integrated.hardware.protocol import (parse_hardware_reply, parse_id
                                                   set_od_led_command)
 from evolver_integrated.hardware.reports import aggregate, read_report, write_report
 from evolver_integrated.hardware.service import HardwareTester, discover_ports
+
+
+def test_firmware_upload_compiles_with_vendored_libraries(monkeypatch):
+    from evolver_integrated.hardware import firmware
+
+    commands = []
+
+    def fake_run(command, check=False):
+        commands.append(command)
+
+    class FakeSerial:
+        def __init__(self, *args, **kwargs): self.replies = iter((
+            b"MEV|2|BLANK|1|HELLO|type=minievolver,proto=2,fw=0.2,hw_proto=1,id=BLANK,owner=BLANK|66\n",
+            b"HW|1|OK|STATUS|sleeves=2,pumps=6,fw=0.2,id=BLANK,hw_proto=1\n",
+        ))
+        def __enter__(self): return self
+        def __exit__(self, *args): return None
+        def write(self, payload): return len(payload)
+        def readline(self): return next(self.replies)
+
+    monkeypatch.setattr(firmware.subprocess, "run", fake_run)
+    monkeypatch.setattr(firmware.time, "sleep", lambda seconds: None)
+    monkeypatch.setitem(sys.modules, "serial", SimpleNamespace(Serial=FakeSerial))
+
+    assert firmware.main(["upload", "--port", "/dev/ttyACM9"]) == 0
+    command = commands[-1]
+    assert command[command.index("compile") + 1:] == [
+        "--fqbn", firmware.FQBN, "--libraries", "evolver-arduino/libraries",
+        "--port", "/dev/ttyACM9", "--upload", "evolver-arduino/SAMD21/MINEVOLVER",
+    ]
+    assert "upload" not in command
 
 
 def test_protocol_identity_parsing():
