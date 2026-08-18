@@ -10,7 +10,67 @@ from textual.app import ComposeResult
 from textual.binding import Binding
 from textual.containers import Grid, Vertical, VerticalScroll
 from textual.screen import ModalScreen
-from textual.widgets import Button, Input, Label, ListItem, ListView, TextArea
+from textual.widgets import Button, Input, Label, ListItem, ListView, TextArea, Static
+
+
+class HardwareCommissioningScreen(ModalScreen[None]):
+    """A deliberately separate, safety-first hardware/commissioning mode.
+
+    Widgets invoke the shared service; they never construct serial commands.
+    """
+    BINDINGS = [Binding("escape", "dismiss_screen", "Close")]
+    DEFAULT_CSS = """
+    HardwareCommissioningScreen { align: center middle; }
+    #hardware-dialog {
+        width: 82; height: 30; border: round $warning;
+        background: $surface; padding: 1 2;
+    }
+    #hardware-actions { height: 3; }
+    #hardware-status { height: 1fr; }
+    """
+
+    def __init__(self, tester_factory: Any) -> None:
+        super().__init__()
+        self._tester_factory = tester_factory
+
+    def compose(self) -> ComposeResult:
+        with Vertical(id="hardware-dialog"):
+            yield Label("Commissioning / Hardware Test (dry-safe)")
+            yield Label(
+                "Physical actuation requires CLI confirmation. "
+                "Emergency safe-state is always available."
+            )
+            with Grid(id="hardware-actions"):
+                yield Button("Controller", id="hw-protocol")
+                yield Button("Thermistors", id="hw-sensors")
+                yield Button("Safe shutdown", variant="error", id="hw-safe")
+            yield Static(
+                "Choose a test. This mode uses the shared hardware service.",
+                id="hardware-status",
+            )
+
+    def on_button_pressed(self, event: Button.Pressed) -> None:
+        from evolver_integrated.hardware.service import HardwareTester
+        tester = HardwareTester(self._tester_factory())
+        try:
+            with tester.session():
+                if event.button.id == "hw-protocol":
+                    tester.protocol()
+                elif event.button.id == "hw-sensors":
+                    tester.sensor(0)
+                    tester.sensor(1)
+                else:
+                    tester.safe_state()
+            text = "\n".join(
+                f"{item.status.value.upper()}: {item.id}"
+                for item in tester.results
+            )
+        except Exception as exc:
+            text = f"Hardware error (outputs were asked to shut down): {exc}"
+        self.query_one("#hardware-status", Static).update(text)
+
+    def action_dismiss_screen(self) -> None:
+        self.dismiss(None)
 
 
 def _slug(value: str) -> str:

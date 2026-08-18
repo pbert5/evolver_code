@@ -12,6 +12,7 @@ dependencies = [
   "PyYAML",
   "python-socketio",
   "textual>=0.80",
+  "pyserial",
 ]
 
 [project.scripts]
@@ -19,6 +20,8 @@ integrated-evolver-control-plane = "evolver_integrated.control_daemon:main"
 integrated-evolver-broadcast-ingest = "evolver_integrated.broadcast_ingest_daemon:main"
 integrated-evolver-supervisor = "evolver_integrated.supervisor_daemon:main"
 integrated-evolver-tui = "evolver_integrated.tui.app:main"
+evolver-hardware-test = "evolver_integrated.hardware.cli:main"
+evolver-commission = "evolver_integrated.hardware.commissioning:main"
 
 [tool.setuptools.packages.find]
 include = ["evolver_integrated*"]

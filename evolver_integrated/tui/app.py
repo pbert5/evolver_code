@@ -29,6 +29,7 @@ from .panels import (
 from .screens import (
     ConfirmScreen,
     FuzzySearchScreen,
+    HardwareCommissioningScreen,
     NewExperimentScreen,
     TemplateFormScreen,
 )
@@ -62,6 +63,7 @@ class EvolverTUI(App):
         ),
         Binding("escape", "clear_focus", "Clear focus", show=False),
         Binding("d", "load_demo_data", "Demo", show=False),
+        Binding("c", "hardware_commissioning", "Hardware", priority=True),
     ]
 
     def __init__(
@@ -103,6 +105,13 @@ class EvolverTUI(App):
 
     async def on_unmount(self) -> None:
         await self._client.stop()
+
+    def action_hardware_commissioning(self) -> None:
+        """Open a separate hardware workspace, not an experiment-management view."""
+        from evolver_integrated.hardware.service import LocalSerialBackend
+        import os
+        port = os.environ.get("EVOLVER_HARDWARE_PORT", "/dev/ttyACM0")
+        self.push_screen(HardwareCommissioningScreen(lambda: LocalSerialBackend(port)))
 
     async def _poll(self) -> None:
         await self._refresh_status()

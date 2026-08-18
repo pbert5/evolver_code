@@ -623,3 +623,11 @@ highlighted rows.
 - What is the minimum experiment creation form before real protocol/material
   inventory exists?
 - Which services are allowed to be autostarted by default in dev?
+# Commissioning / hardware mode
+
+The `c` binding opens a dedicated modal hardware workspace rather than adding
+hardware controls to experiment views. It delegates controller and sensor
+checks plus emergency shutdown to `evolver_integrated.hardware.HardwareTester`.
+The initial direct-local backend uses `EVOLVER_HARDWARE_PORT` (default
+`/dev/ttyACM0`); a future hardwared client can replace that factory without
+changing widgets.

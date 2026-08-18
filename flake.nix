@@ -22,6 +22,7 @@
               aiohttp
               pyyaml
               python-socketio
+              pyserial
               textual
             ]
           );
@@ -40,6 +41,17 @@
           supervisor =
             mkRuntime "evolver_integrated.supervisor_daemon" "run-supervisor";
           tui = mkRuntime "evolver_integrated.tui.app" "run-tui";
+          hardwareTest = mkRuntime "evolver_integrated.hardware.cli" "hardware-test";
+          commission = mkRuntime "evolver_integrated.hardware.commissioning" "commission-evolver";
+          firmware = action:
+            pkgs.writeShellApplication {
+              name = "${action}-firmware";
+              runtimeInputs = [ pythonEnv pkgs.arduino-cli ];
+              text = ''
+                export PYTHONPATH="$PWD''${PYTHONPATH:+:$PYTHONPATH}"
+                exec python -m evolver_integrated.hardware.firmware ${action} "$@"
+              '';
+            };
         in
         {
           "run-control-plane" = {
@@ -67,6 +79,11 @@
             program = "${tui}/bin/run-tui";
             meta.description = "Launch the eVOLVER terminal UI.";
           };
+          "hardware-test" = { type = "app"; program = "${hardwareTest}/bin/hardware-test"; meta.description = "Dry-safe min-eVOLVER hardware tests."; };
+          "commission-evolver" = { type = "app"; program = "${commission}/bin/commission-evolver"; meta.description = "Guided min-eVOLVER commissioning."; };
+          "setup-arduino" = { type = "app"; program = "${firmware "setup"}/bin/setup-firmware"; meta.description = "Install pinned SAMD Arduino cores into workspace state."; };
+          "build-firmware" = { type = "app"; program = "${firmware "build"}/bin/build-firmware"; meta.description = "Build min-eVOLVER SAMD21 firmware."; };
+          "upload-firmware" = { type = "app"; program = "${firmware "upload"}/bin/upload-firmware"; meta.description = "Upload min-eVOLVER SAMD21 firmware."; };
           default = {
             type = "app";
             program = "${controlPlane}/bin/run-control-plane";
@@ -99,6 +116,7 @@
               pytest-cov
               pyyaml
               python-socketio
+              pyserial
               textual
             ]
           );
