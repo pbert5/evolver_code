@@ -1,25 +1,35 @@
 # Hardware-testing playbook
 
-All normal tests are dry-safe: remove liquid/vials before use. Run
-`nix run .#hardware-test -- <usb|protocol|sensors|pumps|stir|heaters|all> --port /dev/ttyACM0`.
+Remove liquid/vials before commissioning. The firmware protocol is explicit and
+always replies with `HW|1|OK|OPERATION|key=value,...` or an `ERR` reply. It is
+separate from normal `od_90`, `od_led`, `temp`, `stir`, and `pump` controls.
 
-USB/protocol: expect a `MEV|2|...` reply to `WHO_ARE_YOU_!` at 9600 baud. PASS
-requires protocol 2 and type `minievolver`; a malformed response is FAIL.
+Run this first bench sequence:
 
-Thermistors: expect three non-rail readings per sleeve. Zero/full-scale or a
-stuck value is WARN/FAIL; this checks electronics only and temperature remains
-NOT_CALIBRATED. OD LED/photodiode testing requires firmware commands verified
-against restored firmware; it must establish LED response and cross-channel
-association, never OD calibration.
+```bash
+nix run .#hardware-test -- usb --port /dev/ttyACM0 --debug
+nix run .#hardware-test -- protocol --port /dev/ttyACM0 --debug
+nix run .#hardware-test -- sensors --port /dev/ttyACM0 --debug
+nix run .#hardware-test -- od --port /dev/ttyACM0 --debug
+nix run .#hardware-test -- stir --port /dev/ttyACM0 --debug
+nix run .#hardware-test -- pumps --port /dev/ttyACM0 --debug
+nix run .#hardware-test -- heaters --port /dev/ttyACM0 --debug
+nix run .#hardware-test -- all --port /dev/ttyACM0 --debug --report ./hardware-first-run.json
+```
 
-Pumps 0–5 and stir 0–1: the tool pulses one logical channel conservatively and
-asks which physical item moved. PASS requires the same channel; none, a wrong
-channel, or duplicates identify wiring/mapping faults. Stir actuation does not
-prove biological mixing. Heater output tests are bounded at low duration; they
-must not use normal closed-loop heating with empty sleeves. Temperature control
-is NOT_TESTABLE dry and temperature calibration is NOT_CALIBRATED.
+| Command | Effect | Dry safe |
+| --- | --- | --- |
+| `HW_STATUS_!` | metadata only | yes |
+| `HW_READ_THERMISTOR,n_!` | raw 16-bit ADC read | yes |
+| `HW_READ_PHOTODIODE,n_!` | raw 16-bit ADC read | yes |
+| `HW_SET_OD_LED,n,level_!` | one LED PWM (0–255) | yes |
+| `HW_PULSE_PUMP,n,ms_!` | one-shot pump, max 1000 ms | yes |
+| `HW_PULSE_STIR,n,ms,level_!` | one-shot stir, max 1000 ms / 250 | yes |
+| `HW_PULSE_HEATER,n,ms,level_!` | bounded heater, max 250 ms / 64 | limited |
+| `HW_SAFE_!` | immediately disable every output | yes |
 
-Emergency shutdown runs after every session, Ctrl-C/exception, and TUI exit:
-pumps, stir, heaters and OD LEDs are commanded off. If serial is lost, the
-report shows a prominent shutdown WARN; physically disconnect power before
-investigation.
+Any hardware command enters commissioning mode and suspends normal actuator
+control. It expires after 15 seconds without a valid command, forcing all
+outputs off. `HW_SAFE` cancels pending pulses and chemostat schedules. The OD
+test checks electronic response and channel association only; it reports
+`od_calibration=NOT_CALIBRATED`.

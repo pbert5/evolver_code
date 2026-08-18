@@ -27,8 +27,7 @@ def main(argv: list[str] | None = None) -> int:
         prior = read_report(args.resume)
         print(f"Resuming record for {prior.get('device', {}).get('id', 'unknown device')}; completed tests are retained in the prior report.")
     if not args.skip_flash:
-        print("Firmware flash is a separate explicit step. Run `nix run .#upload-firmware -- --port ...`, then re-run with --skip-flash.")
-        return 2
+        print("Ensure the commissioning-enabled firmware has been flashed with `nix run .#upload-firmware -- --port ...`.")
     if input("This will actuate dry hardware. Continue? [y/N] ").strip().lower() != "y":
         print("Commissioning cancelled; no outputs were actuated.")
         return 0

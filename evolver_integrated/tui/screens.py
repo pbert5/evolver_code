@@ -43,6 +43,7 @@ class HardwareCommissioningScreen(ModalScreen[None]):
             with Grid(id="hardware-actions"):
                 yield Button("Controller", id="hw-protocol")
                 yield Button("Thermistors", id="hw-sensors")
+                yield Button("OD electronics", id="hw-od")
                 yield Button("Safe shutdown", variant="error", id="hw-safe")
             yield Static(
                 "Choose a test. This mode uses the shared hardware service.",
@@ -59,12 +60,21 @@ class HardwareCommissioningScreen(ModalScreen[None]):
                 elif event.button.id == "hw-sensors":
                     tester.sensor(0)
                     tester.sensor(1)
+                elif event.button.id == "hw-od":
+                    tester.od(0)
+                    tester.od(1)
                 else:
                     tester.safe_state()
             text = "\n".join(
                 f"{item.status.value.upper()}: {item.id}"
                 for item in tester.results
             )
+            exchanges = "\n".join(
+                f"TX {item.get('tx')} RX {item.get('rx')} duration={item.get('duration_ms', '?')}ms"
+                for item in tester.backend.debug_log
+            )
+            if exchanges:
+                text += "\n" + exchanges
         except Exception as exc:
             text = f"Hardware error (outputs were asked to shut down): {exc}"
         self.query_one("#hardware-status", Static).update(text)

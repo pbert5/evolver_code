@@ -1,5 +1,5 @@
 [flake8]
 max-line-length = 88
 per-file-ignores =
-    evolver_integrated/hardware/*.py:E501,E701,E301
-    tests/test_hardware.py:E501,F841
+    evolver_integrated/hardware/*.py:E501,E701,E702,E301
+    tests/test_hardware.py:E501,E701,E702,F841

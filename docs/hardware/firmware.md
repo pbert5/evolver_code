@@ -1,12 +1,14 @@
 # Firmware tooling
 
-Use the workspace-local Arduino core state so setup/build invocations agree:
-`nix run .#setup-arduino`, `nix run .#build-firmware`, and
-`nix run .#upload-firmware -- --port /dev/ttyACM0`. The required FQBN is
-`SparkFun:samd:samd21_mini`; both `arduino:samd` and `sparkfun:samd` are
-installed. Upload verification must include USB re-enumeration and the protocol
-handshake.
+The custom source is the pinned `evolver-arduino` submodule at
+`evolver-arduino/SAMD21/MINEVOLVER`. From the workspace root run:
 
-This integrated checkout currently does not include `SAMD21/MINEVOLVER`; build
-and upload fail clearly until that source is restored (or `EVOLVER_FIRMWARE_DIR`
-is provided). Do not substitute a different board definition.
+```bash
+nix run .#setup-arduino
+nix run .#build-firmware
+nix run .#upload-firmware -- --port /dev/ttyACM0
+```
+
+The target is `SparkFun:samd:samd21_mini`; setup installs both `arduino:samd`
+and `sparkfun:samd`. Upload waits for USB re-enumeration, verifies
+`WHO_ARE_YOU_!`, then requires `HW_STATUS_!` with `hw_proto=1`.

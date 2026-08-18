@@ -1,1 +1,4 @@
 
+[submodule "evolver-arduino"]
+	path = evolver-arduino
+	url = https://github.com/pbert5/evolver-arduino.git

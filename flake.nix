@@ -43,6 +43,7 @@
           tui = mkRuntime "evolver_integrated.tui.app" "run-tui";
           hardwareTest = mkRuntime "evolver_integrated.hardware.cli" "hardware-test";
           commission = mkRuntime "evolver_integrated.hardware.commissioning" "commission-evolver";
+          hardwareSmoke = mkRuntime "evolver_integrated.hardware.smoke" "hardware-smoke";
           firmware = action:
             pkgs.writeShellApplication {
               name = "${action}-firmware";
@@ -81,6 +82,7 @@
           };
           "hardware-test" = { type = "app"; program = "${hardwareTest}/bin/hardware-test"; meta.description = "Dry-safe min-eVOLVER hardware tests."; };
           "commission-evolver" = { type = "app"; program = "${commission}/bin/commission-evolver"; meta.description = "Guided min-eVOLVER commissioning."; };
+          "hardware-smoke" = { type = "app"; program = "${hardwareSmoke}/bin/hardware-smoke"; meta.description = "Non-actuating min-eVOLVER live protocol smoke test."; };
           "setup-arduino" = { type = "app"; program = "${firmware "setup"}/bin/setup-firmware"; meta.description = "Install pinned SAMD Arduino cores into workspace state."; };
           "build-firmware" = { type = "app"; program = "${firmware "build"}/bin/build-firmware"; meta.description = "Build min-eVOLVER SAMD21 firmware."; };
           "upload-firmware" = { type = "app"; program = "${firmware "upload"}/bin/upload-firmware"; meta.description = "Upload min-eVOLVER SAMD21 firmware."; };

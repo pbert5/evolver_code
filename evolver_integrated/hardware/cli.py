@@ -51,8 +51,8 @@ def run(args: argparse.Namespace, confirm: Callable[[str], str] = input) -> list
         if selected in ("protocol", "firmware", "all"): tester.protocol()
         if selected in ("sensors", "all"):
             for channel in range(2): tester.sensor(channel)
-        # Current checked-in tree lacks SAMD21 firmware source; do not claim an
-        # unsupported command is a real firmware capability.
+        if selected in ("od", "all"):
+            for channel in range(2): tester.od(channel)
         for group, kind, channels in (("pumps", "pump", range(6)), ("stir", "stir", range(2)), ("heaters", "heater", range(2))):
             if selected in (group, "all"):
                 for channel in channels:
