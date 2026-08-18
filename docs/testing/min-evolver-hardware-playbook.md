@@ -165,6 +165,25 @@ nix run .#hardware-smoke -- --port /dev/ttyACM0
 
 This does not command pumps, stirrers, heaters, or OD LEDs. It runs `WHO_ARE_YOU_!`, `HW_STATUS_!`, three thermistor reads for each sleeve, one photodiode read for each sleeve, then session cleanup with `HW_SAFE_!`. PASS means communication, commissioning protocol, both analog sensor classes, and a safe-state acknowledgement work. It does not prove actuator hardware.
 
+### Optional: live sensor monitor
+
+For continuous observation during safe bench diagnosis, launch the TUI and
+press `m`:
+
+```bash
+nix run .#run-tui
+```
+
+The **Live Smart Sleeve Sensor Monitor** shows a one-second rolling chart and
+current raw ADC value for thermistor and photodiode channels on both Sleeves.
+It is read-only: opening it enters commissioning safe mode, it never commands
+an actuator, `s` sends `HW_SAFE_!` again, and `Esc` closes with safe cleanup.
+It automatically selects the only connected ACM device; where more than one is
+present, launch with `EVOLVER_HARDWARE_PORT=/dev/ttyACM<n> nix run .#run-tui`.
+Close other serial tools before opening the monitor. The trends are useful for
+catching unwanted changes and wiring faults, but raw ADC values are not OD or
+temperature calibration.
+
 ## Phase 6: protocol test
 
 ```bash

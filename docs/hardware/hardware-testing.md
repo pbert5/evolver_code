@@ -20,6 +20,10 @@ nix run .#hardware-test -- heaters --port /dev/ttyACM0 --debug
 nix run .#hardware-test -- all --port /dev/ttyACM0 --debug --report ./hardware-first-run.json
 ```
 
+For a read-only rolling view of raw thermistor and photodiode values, launch
+the TUI with `nix run .#run-tui` and press `m`. See the detailed
+[live-monitor procedure](../testing/min-evolver-hardware-playbook.md#optional-live-sensor-monitor).
+
 | Command | Effect | Dry safe |
 | --- | --- | --- |
 | `HW_STATUS_!` | metadata only | yes |

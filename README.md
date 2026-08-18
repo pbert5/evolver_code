@@ -118,3 +118,5 @@ for a focused dry test, or `nix run .#commission-evolver -- --operator NAME` for
 the recorded guided workflow. Firmware entrypoints are `setup-arduino`,
 `build-firmware`, and `upload-firmware`. See [hardware documentation](docs/hardware/README.md)
 and the [bench testing and commissioning playbook](docs/testing/min-evolver-hardware-playbook.md).
+The TUI includes a read-only live Smart Sleeve sensor monitor: run
+`nix run .#run-tui` and press `m`.
