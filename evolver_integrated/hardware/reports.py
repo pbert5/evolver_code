@@ -24,7 +24,11 @@ def write_report(path: Path, device: dict[str, Any], operator: str, results: lis
         stamp = datetime.now(timezone.utc).strftime("%Y%m%dT%H%M%S%fZ")
         path = path.with_name(f"{path.stem}-{stamp}{path.suffix}")
     now = datetime.now(timezone.utc).isoformat()
-    payload = {"schema_version": 1, "device": device, "commissioning": {"started_at": now, "completed_at": now, "operator": operator, "result": aggregate(results), "guided": commissioning}, "tests": {result.id: result.to_dict() for result in results}, "calibration": {"temperature": TestStatus.NOT_CALIBRATED.value, "od": TestStatus.NOT_CALIBRATED.value, "pumps": TestStatus.NOT_CALIBRATED.value}}
+    pump_calibration = next((result for result in results if result.id == "pump.direction.calibration"), None)
+    pumps: Any = TestStatus.NOT_CALIBRATED.value
+    if pump_calibration is not None:
+        pumps = {"status": "calibrated", **pump_calibration.debug}
+    payload = {"schema_version": 1, "device": device, "commissioning": {"started_at": now, "completed_at": now, "operator": operator, "result": aggregate(results), "guided": commissioning}, "tests": {result.id: result.to_dict() for result in results}, "calibration": {"temperature": TestStatus.NOT_CALIBRATED.value, "od": TestStatus.NOT_CALIBRATED.value, "pumps": pumps}}
     path.write_text(json.dumps(payload, indent=2, sort_keys=True) + "\n")
     return path
 

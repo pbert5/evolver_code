@@ -12,7 +12,7 @@ from .reports import write_report
 from .service import HardwareError, HardwareTester, LocalSerialBackend, discover_ports
 
 
-COMMANDS = ("usb", "firmware", "protocol", "sensors", "od", "stir", "pumps", "heaters", "all")
+COMMANDS = ("usb", "firmware", "protocol", "sensors", "od", "stir", "pumps", "pump-direction", "heaters", "all")
 PULSE_PROFILES = {"pump": (250, 250, 1000), "stir": (250, 250, 1000), "heater": (100, 50, 250)}
 
 
@@ -60,6 +60,55 @@ def _test_actuator(tester: HardwareTester, kind: str, channel: int, confirm: Cal
     return result
 
 
+_PUMP_DIRECTIONS = {
+    "c": "clockwise", "cw": "clockwise", "clockwise": "clockwise",
+    "ccw": "counterclockwise", "counterclockwise": "counterclockwise", "counter-clockwise": "counterclockwise",
+}
+
+
+def _calibrate_pump_direction(tester: HardwareTester, channel: int, confirm: Callable[[str], str]) -> HardwareTestResult:
+    """Record the rotation direction, viewed from the pump drive-shaft side."""
+    duration_ms, increment_ms, maximum_ms = PULSE_PROFILES["pump"]
+    result = tester.pump_direction(channel, duration_ms)
+    while result.status != TestStatus.FAIL:
+        answer = confirm(
+            f"Logical pump {channel} pulsed for {duration_ms} ms; viewed from the drive-shaft side, "
+            "direction? (C=clockwise/CCW=counterclockwise/N/S; Enter or Space=re-pulse): "
+        )
+        value = answer.strip().lower()
+        if not value:
+            duration_ms = min(duration_ms + increment_ms, maximum_ms)
+            if not tester.repeat_pump_direction(result, channel, duration_ms): break
+        elif value == "s":
+            result.status = TestStatus.SKIP
+            result.observed = "direction not recorded"
+            break
+        elif value == "n":
+            result.status = TestStatus.FAIL
+            result.observed = "no rotation observed"
+            break
+        elif value in _PUMP_DIRECTIONS:
+            result.status = TestStatus.PASS
+            result.observed = _PUMP_DIRECTIONS[value]
+            result.debug["direction"] = result.observed
+            result.debug["viewpoint"] = "drive-shaft side"
+            break
+    return result
+
+
+def _summarize_pump_directions(tester: HardwareTester) -> HardwareTestResult | None:
+    directions = {result.channel: result.observed for result in tester.results
+                  if result.component == "pump_direction" and result.status == TestStatus.PASS and result.channel is not None}
+    if len(directions) != 6:
+        return None
+    values = set(directions.values())
+    if len(values) == 1:
+        direction = next(iter(values))
+        return tester.calibration_summary(TestStatus.PASS, f"all six pumps: {direction}", {"mode": "shared", "direction": direction})
+    mapping = ", ".join(f"{channel}={directions[channel]}" for channel in sorted(directions))
+    return tester.calibration_summary(TestStatus.WARN, f"per-pump directions: {mapping}", {"mode": "per_pump", "directions": directions})
+
+
 def run(args: argparse.Namespace, confirm: Callable[[str], str] = input) -> list[HardwareTestResult]:
     candidates = discover_ports(args.port)
     if not candidates:
@@ -80,6 +129,10 @@ def run(args: argparse.Namespace, confirm: Callable[[str], str] = input) -> list
             if selected in (group, "all"):
                 for channel in channels:
                     _test_actuator(tester, kind, channel, confirm)
+        if selected == "pump-direction":
+            for channel in range(6):
+                _calibrate_pump_direction(tester, channel, confirm)
+            _summarize_pump_directions(tester)
         tester.duplicate_mapping_warnings()
     return tester.results
 

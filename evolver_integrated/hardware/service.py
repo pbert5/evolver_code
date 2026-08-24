@@ -145,6 +145,16 @@ class HardwareTester:
             result.observed = str(exc)
             result.debug["error"] = str(exc)
             return False
+    def pump_direction(self, channel: int, duration_ms: int = 500) -> HardwareTestResult:
+        pin = HARDWARE_MAP["pumps"][channel]
+        try:
+            reply = self._pulse_actuator("pump", channel, duration_ms)
+            return self._result(f"pump.{channel}.direction", "pump_direction", TestStatus.NOT_TESTABLE, "pump rotation direction viewed from drive-shaft side", channel=channel, automatic=False, observed="awaiting operator confirmation", duration_ms=duration_ms, debug={"mcu_pin": pin, "response": reply.raw, "attempts": [{"duration_ms": duration_ms, "response": reply.raw}]})
+        except Exception as exc: return self._result(f"pump.{channel}.direction", "pump_direction", TestStatus.FAIL, "pump command acknowledged", channel=channel, observed=str(exc), debug={"mcu_pin": pin})
+    def repeat_pump_direction(self, result: HardwareTestResult, channel: int, duration_ms: int) -> bool:
+        return self.repeat_actuator(result, "pump", channel, duration_ms)
+    def calibration_summary(self, status: TestStatus, observed: str, debug: dict) -> HardwareTestResult:
+        return self._result("pump.direction.calibration", "pump_direction", status, "documented pump rotation direction", observed=observed, automatic=False, debug=debug)
     def record_observation(self, result: HardwareTestResult, observed_channel: Optional[int]) -> HardwareTestResult:
         result.observed = "none" if observed_channel is None else f"physical channel {observed_channel}"; result.status = TestStatus.PASS if observed_channel == result.channel else TestStatus.FAIL; return result
     def duplicate_mapping_warnings(self) -> list[HardwareTestResult]:

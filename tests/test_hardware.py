@@ -72,6 +72,49 @@ def test_actuator_prompt_repeats_with_a_longer_bounded_pulse():
     assert result.status == TestStatus.PASS
 
 
+def test_pump_direction_calibration_records_shared_direction():
+    from evolver_integrated.hardware.cli import _calibrate_pump_direction, _summarize_pump_directions
+
+    class FakeTester:
+        def __init__(self): self.results, self.durations = [], []
+        def pump_direction(self, channel, duration_ms):
+            self.durations.append(duration_ms)
+            result = HardwareTestResult(f"pump.{channel}.direction", "pump_direction", TestStatus.NOT_TESTABLE, "x", channel=channel, debug={})
+            self.results.append(result)
+            return result
+        def repeat_pump_direction(self, result, channel, duration_ms): self.durations.append(duration_ms); return True
+        def calibration_summary(self, status, observed, debug):
+            result = HardwareTestResult("pump.direction.calibration", "pump_direction", status, "x", observed=observed, debug=debug)
+            self.results.append(result)
+            return result
+
+    tester = FakeTester()
+    for channel in range(6):
+        assert _calibrate_pump_direction(tester, channel, lambda prompt: "CCW").observed == "counterclockwise"
+    summary = _summarize_pump_directions(tester)
+    assert summary.status == TestStatus.PASS
+    assert summary.debug == {"mode": "shared", "direction": "counterclockwise"}
+
+
+def test_pump_direction_calibration_records_mixed_directions_per_pump():
+    from evolver_integrated.hardware.cli import _summarize_pump_directions
+
+    class FakeTester:
+        def __init__(self):
+            self.results = [
+                HardwareTestResult(f"pump.{channel}.direction", "pump_direction", TestStatus.PASS, "x", channel=channel,
+                                   observed="clockwise" if channel % 2 else "counterclockwise")
+                for channel in range(6)
+            ]
+        def calibration_summary(self, status, observed, debug):
+            return HardwareTestResult("pump.direction.calibration", "pump_direction", status, "x", observed=observed, debug=debug)
+
+    summary = _summarize_pump_directions(FakeTester())
+    assert summary.status == TestStatus.WARN
+    assert summary.debug["mode"] == "per_pump"
+    assert summary.debug["directions"] == {0: "counterclockwise", 1: "clockwise", 2: "counterclockwise", 3: "clockwise", 4: "counterclockwise", 5: "clockwise"}
+
+
 def test_protocol_identity_parsing():
     identity = parse_identity("MEV|2|BLANK|1|HELLO|type=minievolver,proto=2,fw=0.2,hw_proto=1,id=BLANK,owner=BLANK|66")
     assert identity.device_id == "BLANK" and identity.hw_protocol == 1

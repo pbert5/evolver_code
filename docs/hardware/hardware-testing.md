@@ -16,6 +16,7 @@ nix run .#hardware-test -- sensors --port /dev/ttyACM0 --debug
 nix run .#hardware-test -- od --port /dev/ttyACM0 --debug
 nix run .#hardware-test -- stir --port /dev/ttyACM0 --debug
 nix run .#hardware-test -- pumps --port /dev/ttyACM0 --debug
+nix run .#hardware-test -- pump-direction --port /dev/ttyACM0 --debug --report ./pump-direction.json
 nix run .#hardware-test -- heaters --port /dev/ttyACM0 --debug
 nix run .#hardware-test -- all --port /dev/ttyACM0 --debug --report ./hardware-first-run.json
 ```
@@ -34,6 +35,13 @@ the TUI with `nix run .#run-tui` and press `m`. See the detailed
 | `HW_PULSE_STIR,n,ms,level_!` | one-shot stir, max 1000 ms / 250 | yes |
 | `HW_PULSE_HEATER,n,ms,level_!` | bounded heater, max 250 ms / 64 | limited |
 | `HW_SAFE_!` | immediately disable every output | yes |
+
+`pump-direction` records the observed rotation for every pump, using the
+drive-shaft side as the viewing reference. Enter `C` for clockwise or `CCW`
+for counterclockwise. A common direction is recorded once as a shared setting;
+mixed directions are retained as per-pump settings in the report. This is a
+recording/calibration check only: the current pump driver is on/off and cannot
+reverse a pump in software.
 
 Any hardware command enters commissioning mode and suspends normal actuator
 control. It expires after 15 seconds without a valid command, forcing all
