@@ -198,6 +198,9 @@ def validate_device_command_request(payload):
 
 def _validate_typed_device_command(payload):
     """Validate the cross-layer actuator request without building wire text."""
+    schema_version = payload.get("schema_version", DEVICE_PROTOCOL_VERSION)
+    if schema_version != DEVICE_PROTOCOL_VERSION:
+        raise MessageValidationError("unsupported device protocol version: " + str(schema_version))
     operation = payload.get("operation")
     if not isinstance(operation, str) or operation not in DEVICE_OPERATIONS:
         raise MessageValidationError("unsupported device operation: " + str(operation))
@@ -212,6 +215,9 @@ def _validate_typed_device_command(payload):
         channel = parameters.get("channel")
         if not isinstance(channel, int) or channel < 0:
             raise MessageValidationError("device channel must be a non-negative integer")
+        maximum = 5 if operation in {"pump_pulse", "pump_stop"} else 1
+        if channel > maximum:
+            raise MessageValidationError(f"device channel must be in 0..{maximum}")
     if operation == "pump_pulse":
         if parameters.get("direction", "forward") != "forward":
             raise MessageValidationError("reverse pumping is unsupported by firmware")
@@ -232,7 +238,7 @@ def _validate_typed_device_command(payload):
         raise MessageValidationError("typed device command command_id is required")
     _require_non_empty_string(payload, "command_id")
     return {
-        "schema_version": payload.get("schema_version", DEVICE_PROTOCOL_VERSION),
+        "schema_version": schema_version,
         "command_id": payload["command_id"],
         "operation": operation,
         "target": dict(target),

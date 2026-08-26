@@ -33,6 +33,20 @@ def test_typed_pump_request_is_normalized_without_wire_text():
 
 
 @pytest.mark.parametrize("parameters", [
+    {"channel": 6, "duration_ms": 500},
+    {"channel": -1, "duration_ms": 500},
+])
+def test_typed_pump_channel_bounds_are_rejected_before_translation(parameters):
+    with pytest.raises(MessageValidationError):
+        validate_device_command_request(_command(parameters=parameters))
+
+
+def test_typed_protocol_version_mismatch_is_rejected_before_translation():
+    with pytest.raises(MessageValidationError, match="unsupported device protocol version"):
+        validate_device_command_request(_command(schema_version="evolver.device.v1"))
+
+
+@pytest.mark.parametrize("parameters", [
     {"channel": 0, "duration_ms": 0},
     {"channel": 0, "duration_ms": 1001},
     {"channel": 0, "duration_ms": 500, "direction": "reverse"},
