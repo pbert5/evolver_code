@@ -14,6 +14,17 @@ EVENT_EXPERIMENT_RUNNER_ACTION = "experiment.runner.action"
 EVENT_JOB_STATUS = "job.status"
 EVENT_DEVICE_COMMAND = "device.command.request"
 
+# Actuator requests use this contract.  The legacy ``param``/``value`` form
+# remains accepted below for existing DPU clients, but new callers must use
+# an explicit operation and structured target/parameters.
+DEVICE_PROTOCOL_VERSION = "evolver.device.v2"
+DEVICE_OPERATIONS = frozenset({
+    "pump_pulse",
+    "pump_stop",
+    "stir_pulse",
+    "safe_stop",
+})
+
 
 class MessageValidationError(ValueError):
     """Raised when an interprocess message does not match the v1 contract."""
@@ -149,6 +160,10 @@ def validate_experiment_request(payload):
 
 def validate_device_command_request(payload):
     _require_dict(payload, "device command request")
+
+    if "operation" in payload:
+        return _validate_typed_device_command(payload)
+
     _require_non_empty_string(payload, "param")
 
     if "value" not in payload:
@@ -179,6 +194,51 @@ def validate_device_command_request(payload):
             command[field] = payload[field]
 
     return command
+
+
+def _validate_typed_device_command(payload):
+    """Validate the cross-layer actuator request without building wire text."""
+    operation = payload.get("operation")
+    if not isinstance(operation, str) or operation not in DEVICE_OPERATIONS:
+        raise MessageValidationError("unsupported device operation: " + str(operation))
+    target = payload.get("target")
+    parameters = payload.get("parameters", {})
+    context = payload.get("context", {})
+    if not isinstance(target, dict) or not target.get("device_id"):
+        raise MessageValidationError("typed device command target.device_id is required")
+    if not isinstance(parameters, dict) or not isinstance(context, dict):
+        raise MessageValidationError("typed device command parameters and context must be objects")
+    if operation in {"pump_pulse", "pump_stop", "stir_pulse"}:
+        channel = parameters.get("channel")
+        if not isinstance(channel, int) or channel < 0:
+            raise MessageValidationError("device channel must be a non-negative integer")
+    if operation == "pump_pulse":
+        if parameters.get("direction", "forward") != "forward":
+            raise MessageValidationError("reverse pumping is unsupported by firmware")
+        duration = parameters.get("duration_ms")
+        if not isinstance(duration, int) or not 1 <= duration <= 1000:
+            raise MessageValidationError("pump duration_ms must be an integer in 1..1000")
+    if operation == "stir_pulse":
+        duration, level = parameters.get("duration_ms"), parameters.get("level")
+        if not isinstance(duration, int) or not 1 <= duration <= 1000:
+            raise MessageValidationError("stir duration_ms must be an integer in 1..1000")
+        if not isinstance(level, int) or not 1 <= level <= 250:
+            raise MessageValidationError("stir level must be an integer in 1..250")
+    if operation == "pump_stop" and "channel" in parameters and (
+        not isinstance(parameters["channel"], int) or parameters["channel"] < 0
+    ):
+        raise MessageValidationError("device channel must be a non-negative integer")
+    if "command_id" not in payload:
+        raise MessageValidationError("typed device command command_id is required")
+    _require_non_empty_string(payload, "command_id")
+    return {
+        "schema_version": payload.get("schema_version", DEVICE_PROTOCOL_VERSION),
+        "command_id": payload["command_id"],
+        "operation": operation,
+        "target": dict(target),
+        "parameters": dict(parameters),
+        "context": dict(context),
+    }
 
 
 def make_experiment_status(experiment_id, state, producer, reason=None):
