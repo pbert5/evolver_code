@@ -1,9 +1,10 @@
 # min-eVOLVER Firmware, Hardware Testing, and Commissioning Playbook
 
 This bench procedure is for a newly assembled min-eVOLVER connected over USB to
-a Linux/NixOS host. It reflects the `test-hardware` safe-idle firmware work in
-`evolver_code` commit `cad5ddd74e1dd2c7d0af6ba519aba5bd5fb85fe1` and pinned
-`evolver-arduino` commit `1d3a35509482b059205d27150ef5ccec4f6b8941`.
+a Linux/NixOS host. The current `evolver-arduino` gitlink pin is
+`fafc3b823cfe5ac88488dd81918e6d8d5c289a24`. It preserves the safe-idle and
+heater-polarity work while allowing the board to answer after CDC enumeration;
+the firmware no longer waits indefinitely for a USB host in `setup()`.
 
 ## Three separate stages
 
