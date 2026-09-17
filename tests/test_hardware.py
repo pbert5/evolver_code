@@ -28,6 +28,8 @@ def test_firmware_build_writes_immutable_artifact_and_provenance(tmp_path, monke
 
     def fake_run(command, **kwargs):
         commands.append(command)
+        if command[:3] == ["git", "-C", str(source)] and "status" in command:
+            return SimpleNamespace(stdout="")
         if "compile" in command:
             output_dir = Path(command[command.index("--output-dir") + 1])
             (output_dir / "MINEVOLVER.ino.bin").write_bytes(b"firmware")
@@ -49,7 +51,7 @@ def test_firmware_build_writes_immutable_artifact_and_provenance(tmp_path, monke
         "sha256": hashlib.sha256(b"firmware").hexdigest(),
         "size": len(b"firmware"),
     }
-    compile_command = commands[0]
+    compile_command = next(command for command in commands if "compile" in command)
     assert compile_command[compile_command.index("compile") + 1:] == [
         "--fqbn", firmware.FQBN, "--libraries", str(source.parents[1] / "libraries"),
         "--output-dir", compile_command[compile_command.index("--output-dir") + 1],
@@ -57,6 +59,24 @@ def test_firmware_build_writes_immutable_artifact_and_provenance(tmp_path, monke
     ]
     assert firmware.main(["build", "--artifact", str(artifact)]) == 2
     assert len([command for command in commands if "compile" in command]) == 1
+
+
+def test_firmware_build_rejects_dirty_source_before_compile(tmp_path, monkeypatch):
+    from evolver_integrated.hardware import firmware
+
+    source = tmp_path / "evolver-arduino" / "SAMD21" / "MINEVOLVER"
+    source.mkdir(parents=True)
+    (source / "MINEVOLVER.ino").write_text("void setup() {}\n")
+    artifact = tmp_path / ".artifacts" / "MINEVOLVER.ino.bin"
+    commands = []
+
+    monkeypatch.setattr(firmware, "_source", lambda: source)
+    monkeypatch.setattr(firmware, "_source_worktree_status", lambda path: " M MINEVOLVER.ino\n")
+    monkeypatch.setattr(firmware.subprocess, "run", lambda command, **kwargs: commands.append(command))
+
+    assert firmware.main(["build", "--artifact", str(artifact)]) == 2
+    assert commands == []
+    assert not artifact.exists()
 
 
 def test_firmware_upload_uses_verified_artifact_without_recompiling(tmp_path, monkeypatch):
@@ -103,10 +123,37 @@ def test_firmware_upload_uses_verified_artifact_without_recompiling(tmp_path, mo
     monkeypatch.setitem(sys.modules, "serial", SimpleNamespace(Serial=FakeSerial))
 
     assert firmware.main(["upload", "--port", "/dev/ttyACM9", "--artifact", str(artifact)]) == 0
-    assert commands == [[
+    assert commands[-1] == [
         "arduino-cli", "upload", "--fqbn", firmware.FQBN,
         "--port", "/dev/ttyACM9", "--input-dir", str(artifact.parent),
-    ]]
+    ]
+
+
+def test_firmware_upload_rejects_dirty_source_before_upload(tmp_path, monkeypatch):
+    from evolver_integrated.hardware import firmware
+
+    source = tmp_path / "evolver-arduino" / "SAMD21" / "MINEVOLVER"
+    source.mkdir(parents=True)
+    (source / "MINEVOLVER.ino").write_text("void setup() {}\n")
+    artifact = tmp_path / "MINEVOLVER.ino.bin"
+    artifact.write_bytes(b"firmware")
+    digest, size = firmware._digest(artifact)
+    firmware._provenance_path(artifact).write_text(json.dumps({
+        "schema": "evolver-firmware-provenance/v1",
+        "source_repository": firmware.SOURCE_REPOSITORY,
+        "source_commit": firmware.SOURCE_COMMIT,
+        "source_path": "SAMD21/MINEVOLVER/MINEVOLVER.ino",
+        "fqbn": firmware.FQBN,
+        "artifact": {"filename": artifact.name, "sha256": digest, "size": size},
+    }))
+    commands = []
+
+    monkeypatch.setattr(firmware, "_source", lambda: source)
+    monkeypatch.setattr(firmware, "_source_worktree_status", lambda path: "?? generated.bin\n")
+    monkeypatch.setattr(firmware.subprocess, "run", lambda command, **kwargs: commands.append(command))
+
+    assert firmware.main(["upload", "--artifact", str(artifact)]) == 2
+    assert commands == []
 
 
 def test_firmware_upload_rejects_tampered_artifact_before_upload(tmp_path, monkeypatch):

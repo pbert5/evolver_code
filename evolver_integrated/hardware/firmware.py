@@ -59,9 +59,21 @@ def _canonical_repo(repo: str) -> str:
     return repo.rstrip("/").removesuffix(".git")
 
 
+def _source_worktree_status(source: Path) -> str:
+    return subprocess.run(
+        ["git", "-C", str(source), "status", "--porcelain=v1", "--untracked-files=all"],
+        check=True,
+        capture_output=True,
+        text=True,
+    ).stdout
+
+
 def _validate_source(source: Path) -> tuple[str, str]:
     if not (source / "MINEVOLVER.ino").is_file():
         raise ValueError("Firmware source SAMD21/MINEVOLVER/MINEVOLVER.ino is not present")
+    status = _source_worktree_status(source)
+    if status:
+        raise ValueError(f"firmware source worktree is dirty: {status.splitlines()[0]}")
     repo, commit = _source_identity(source)
     if _canonical_repo(repo) != _canonical_repo(SOURCE_REPOSITORY):
         raise ValueError(f"firmware source repository drift: {repo}")

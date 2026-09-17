@@ -2,7 +2,7 @@
 
 This bench procedure is for a newly assembled min-eVOLVER connected over USB to
 a Linux/NixOS host. The current `evolver-arduino` gitlink pin is
-`fafc3b823cfe5ac88488dd81918e6d8d5c289a24`. It preserves the safe-idle and
+`952a6fd713c40caa072444a0e0e3fc4fc6ee4639`. It preserves the safe-idle and
 heater-polarity work while allowing the board to answer after CDC enumeration;
 the firmware no longer waits indefinitely for a USB host in `setup()`.
 
