@@ -1,3 +1,5 @@
+import hashlib
+import json
 from pathlib import Path
 import sys
 from types import SimpleNamespace
@@ -14,13 +16,72 @@ from evolver_integrated.hardware.reports import aggregate, read_report, write_re
 from evolver_integrated.hardware.service import HardwareTester, discover_ports
 
 
-def test_firmware_upload_compiles_with_vendored_libraries(monkeypatch):
+def test_firmware_build_writes_immutable_artifact_and_provenance(tmp_path, monkeypatch):
     from evolver_integrated.hardware import firmware
 
+    source = tmp_path / "evolver-arduino" / "SAMD21" / "MINEVOLVER"
+    source.mkdir(parents=True)
+    (source / "MINEVOLVER.ino").write_text("void setup() {}\n")
+    (source.parents[1] / "libraries").mkdir()
+    artifact = tmp_path / ".artifacts" / "MINEVOLVER.ino.bin"
     commands = []
 
-    def fake_run(command, check=False):
+    def fake_run(command, **kwargs):
         commands.append(command)
+        if "compile" in command:
+            output_dir = Path(command[command.index("--output-dir") + 1])
+            (output_dir / "MINEVOLVER.ino.bin").write_bytes(b"firmware")
+        return SimpleNamespace(stdout="arduino-cli 1.0.0\n")
+
+    monkeypatch.setattr(firmware, "_source", lambda: source)
+    monkeypatch.setattr(firmware, "_source_identity", lambda path: (firmware.SOURCE_REPOSITORY, firmware.SOURCE_COMMIT))
+    monkeypatch.setattr(firmware, "_cli", lambda: ["arduino-cli"])
+    monkeypatch.setattr(firmware.subprocess, "run", fake_run)
+
+    assert firmware.main(["build", "--artifact", str(artifact)]) == 0
+    assert artifact.read_bytes() == b"firmware"
+    provenance = json.loads(firmware._provenance_path(artifact).read_text())
+    assert provenance["schema"] == "evolver-firmware-provenance/v1"
+    assert provenance["source_commit"] == firmware.SOURCE_COMMIT
+    assert provenance["fqbn"] == firmware.FQBN
+    assert provenance["artifact"] == {
+        "filename": artifact.name,
+        "sha256": hashlib.sha256(b"firmware").hexdigest(),
+        "size": len(b"firmware"),
+    }
+    compile_command = commands[0]
+    assert compile_command[compile_command.index("compile") + 1:] == [
+        "--fqbn", firmware.FQBN, "--libraries", str(source.parents[1] / "libraries"),
+        "--output-dir", compile_command[compile_command.index("--output-dir") + 1],
+        str(source),
+    ]
+    assert firmware.main(["build", "--artifact", str(artifact)]) == 2
+    assert len([command for command in commands if "compile" in command]) == 1
+
+
+def test_firmware_upload_uses_verified_artifact_without_recompiling(tmp_path, monkeypatch):
+    from evolver_integrated.hardware import firmware
+
+    source = tmp_path / "evolver-arduino" / "SAMD21" / "MINEVOLVER"
+    source.mkdir(parents=True)
+    (source / "MINEVOLVER.ino").write_text("void setup() {}\n")
+    artifact = tmp_path / ".artifacts" / "MINEVOLVER.ino.bin"
+    artifact.parent.mkdir()
+    artifact.write_bytes(b"firmware")
+    digest, size = firmware._digest(artifact)
+    firmware._provenance_path(artifact).write_text(json.dumps({
+        "schema": "evolver-firmware-provenance/v1",
+        "source_repository": firmware.SOURCE_REPOSITORY,
+        "source_commit": firmware.SOURCE_COMMIT,
+        "source_path": "SAMD21/MINEVOLVER/MINEVOLVER.ino",
+        "fqbn": firmware.FQBN,
+        "artifact": {"filename": artifact.name, "sha256": digest, "size": size},
+    }))
+    commands = []
+
+    def fake_run(command, **kwargs):
+        commands.append(command)
+        return SimpleNamespace(stdout="")
 
     class FakeSerial:
         def __init__(self, *args, **kwargs): self.replies = iter((
@@ -33,18 +94,44 @@ def test_firmware_upload_compiles_with_vendored_libraries(monkeypatch):
         def write(self, payload): return len(payload)
         def readline(self): return next(self.replies)
 
+    monkeypatch.setattr(firmware, "_source", lambda: source)
+    monkeypatch.setattr(firmware, "_source_identity", lambda path: (firmware.SOURCE_REPOSITORY, firmware.SOURCE_COMMIT))
+    monkeypatch.setattr(firmware, "_cli", lambda: ["arduino-cli"])
     monkeypatch.setattr(firmware.subprocess, "run", fake_run)
     monkeypatch.setattr(firmware.time, "sleep", lambda seconds: None)
     monkeypatch.setattr(firmware, "glob", lambda pattern: ["/dev/ttyACM9"])
     monkeypatch.setitem(sys.modules, "serial", SimpleNamespace(Serial=FakeSerial))
 
-    assert firmware.main(["upload", "--port", "/dev/ttyACM9"]) == 0
-    command = commands[-1]
-    assert command[command.index("compile") + 1:] == [
-        "--fqbn", firmware.FQBN, "--libraries", "evolver-arduino/libraries",
-        "--port", "/dev/ttyACM9", "--upload", "evolver-arduino/SAMD21/MINEVOLVER",
-    ]
-    assert "upload" not in command
+    assert firmware.main(["upload", "--port", "/dev/ttyACM9", "--artifact", str(artifact)]) == 0
+    assert commands == [[
+        "arduino-cli", "upload", "--fqbn", firmware.FQBN,
+        "--port", "/dev/ttyACM9", "--input-dir", str(artifact.parent),
+    ]]
+
+
+def test_firmware_upload_rejects_tampered_artifact_before_upload(tmp_path, monkeypatch):
+    from evolver_integrated.hardware import firmware
+
+    source = tmp_path / "evolver-arduino" / "SAMD21" / "MINEVOLVER"
+    source.mkdir(parents=True)
+    (source / "MINEVOLVER.ino").write_text("void setup() {}\n")
+    artifact = tmp_path / "MINEVOLVER.ino.bin"
+    artifact.write_bytes(b"tampered")
+    firmware._provenance_path(artifact).write_text(json.dumps({
+        "source_repository": firmware.SOURCE_REPOSITORY,
+        "source_commit": firmware.SOURCE_COMMIT,
+        "fqbn": firmware.FQBN,
+        "artifact": {"filename": artifact.name, "sha256": "wrong", "size": 1},
+    }))
+    commands = []
+
+    monkeypatch.setattr(firmware, "_source", lambda: source)
+    monkeypatch.setattr(firmware, "_source_identity", lambda path: (firmware.SOURCE_REPOSITORY, firmware.SOURCE_COMMIT))
+    monkeypatch.setattr(firmware, "_cli", lambda: ["arduino-cli"])
+    monkeypatch.setattr(firmware.subprocess, "run", lambda command, **kwargs: commands.append(command))
+
+    assert firmware.main(["upload", "--artifact", str(artifact)]) == 2
+    assert commands == []
 
 
 def test_actuator_prompt_repeats_with_a_longer_bounded_pulse():
@@ -77,12 +164,15 @@ def test_pump_direction_calibration_records_shared_direction():
 
     class FakeTester:
         def __init__(self): self.results, self.durations = [], []
+
         def pump_direction(self, channel, duration_ms):
             self.durations.append(duration_ms)
             result = HardwareTestResult(f"pump.{channel}.direction", "pump_direction", TestStatus.NOT_TESTABLE, "x", channel=channel, debug={})
             self.results.append(result)
             return result
+
         def repeat_pump_direction(self, result, channel, duration_ms): self.durations.append(duration_ms); return True
+
         def calibration_summary(self, status, observed, debug):
             result = HardwareTestResult("pump.direction.calibration", "pump_direction", status, "x", observed=observed, debug=debug)
             self.results.append(result)
@@ -106,6 +196,7 @@ def test_pump_direction_calibration_records_mixed_directions_per_pump():
                                    observed="clockwise" if channel % 2 else "counterclockwise")
                 for channel in range(6)
             ]
+
         def calibration_summary(self, status, observed, debug):
             return HardwareTestResult("pump.direction.calibration", "pump_direction", status, "x", observed=observed, debug=debug)
 
