@@ -72,7 +72,7 @@ nix develop -c flake8 evolver_integrated/hardware tests/test_hardware.py
 nix run .#build-firmware
 ```
 
-The focused suite currently reports `26 passed`. Firmware must compile for
+The focused suite currently reports `30 passed`. Firmware must compile for
 `SparkFun:samd:samd21_mini`. A validated build used approximately 19% flash and
 22% RAM; those percentages are informative, not rigid pass criteria.
 
